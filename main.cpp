@@ -92,7 +92,7 @@ void AddGoods() {
   goods[current_goods_added].position = Position(x, y);
   goods[current_goods_added].value = value;
   goods[current_goods_added].occur_time = current_time;
-//    map.goods[Position(x, y)] = &goods[current_goods_added];
+    map.goods[goods[current_goods_added].position] = &goods[current_goods_added];
     current_goods_added++;
 
 

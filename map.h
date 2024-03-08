@@ -20,6 +20,12 @@ struct Map {
   std::unordered_map<Position,Berth*, HashPosition> berth;
   std::unordered_map<Position,Robot*, HashPosition> robot;
 
+    Map() {
+      goods.reserve(kN*kN);
+        berth.reserve(kN*kN);
+        robot.reserve(kN*kN);
+
+    }
   bool IsReachable(const Position &pos) const {
     return pos.IsInMap()
         && (grid[pos.x][pos.y] != '*' && grid[pos.x][pos.y] != '#');
