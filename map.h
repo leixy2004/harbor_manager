@@ -4,32 +4,19 @@
 
 #ifndef HARBOR_MANAGER__MAP_H_
 #define HARBOR_MANAGER__MAP_H_
-#include <array>
-#include <iostream>
-#include <map>
-#include <unordered_map>
 #include "position.h"
 #include "constant.h"
-#include "robot.h"
-#include "goods.h"
-#include "berth.h"
+//#include "robot.h"
+//#include "goods.h"
+//#include "berth.h"
 
 struct Map {
   char grid[kN][kN]{};
-  std::unordered_map<Position,Goods*, HashPosition> goods;
-  std::unordered_map<Position,Berth*, HashPosition> berth;
-  std::unordered_map<Position,Robot*, HashPosition> robot;
-
-    Map() {
-      goods.reserve(kN*kN);
-        berth.reserve(kN*kN);
-        robot.reserve(kN*kN);
-
-    }
-  bool IsReachable(const Position &pos) const {
-    return pos.IsInMap()
-        && (grid[pos.x][pos.y] != '*' && grid[pos.x][pos.y] != '#');
+  bool is_occupied[kN][kN]{};
+  static bool IsInMap(int x, int y) {
+    return x >= 0 && x < kN && y >= 0 && y < kN;
   }
+
 };
 
 #endif //HARBOR_MANAGER__MAP_H_

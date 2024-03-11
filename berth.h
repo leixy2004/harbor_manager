@@ -6,13 +6,23 @@
 #define HARBOR_MANAGER__BERTH_H_
 #include "position.h"
 #include <queue>
-#include "goods.h"
-struct Berth {
-  int id{};
-int transport_time{};
-int loading_speed{};
-Position left_up_position{};
-std::queue<Goods> goods_queue;
+#include "bfs.h"
+#include "map_area.h"
+struct Berth : MapArea {
+  int transport_time{};
+  int loading_speed{};
+  int saved_goods{};
+  int distance[kN][kN]{};
+  int direction[kN][kN]{};
+  void Init() {
+    static Position area[kBerthSize * kBerthSize]{};
+    for (int i = 0; i < kBerthSize; i++) {
+      for (int j = 0; j < kBerthSize; j++) {
+        area[i * kBerthSize + j] = Position{top + i, left + j};
+      }
+    }
+    Bfs(kBerthSize * kBerthSize, area, distance, direction);
+  }
 };
 
 #endif //HARBOR_MANAGER__BERTH_H_
