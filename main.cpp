@@ -75,9 +75,9 @@ void InitAllBerth() {
   }
   for (int x = 0; x < kN; x++) {
     for (int y = 0; y < kN; y++) {
-      if (map.grid[x][y] != '.' && map.grid[x][y] != 'A') continue;
       map.dis[x][y] = kN * kN;
       map.pre[x][y] = -1;
+      if (!map.IsEmpty(x,y)) continue;
       for (auto &id : berth) {
         if (map.dis[x][y] > id.dis[x][y]) {
           map.dis[x][y] = id.dis[x][y];
@@ -227,6 +227,7 @@ void UpdateRobot(int id) {
       int dir = goods[robot[id].goods_id]->pre[x][y];
       if (dir == -1) {
         robot[id].PrintLoad();
+        fprintf(stderr,"robot:%d LOAD\n",id);
         robot[id].status = Robot::kGoingToUnload;
         goods[robot[id].goods_id]->status = Goods::kOnRobot;
       } else {
@@ -236,6 +237,7 @@ void UpdateRobot(int id) {
       int dir = map.pre[x][y];
       if (dir == -1) {
         robot[id].PrintUnload();
+        fprintf(stderr,"robot:%d UNLOAD\n",id);
         robot[id].status = Robot::kIdle;
         goods[robot[id].goods_id]->status = Goods::kOnBerth;
         robot[id].goods_id = -1;
