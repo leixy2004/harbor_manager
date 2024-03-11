@@ -6,6 +6,7 @@
 #define HARBOR_MANAGER__GOODS_H_
 #include "position.h"
 #include "map_object.h"
+
 struct Goods : MapObject {
   enum GoodsStatus {
     kNone,
@@ -19,21 +20,15 @@ struct Goods : MapObject {
   };
   int value{};
   int occur_time{};
+  int dis[kN][kN]{};
+  int pre[kN][kN]{};
+
   Goods() = default;
   Goods(int x, int y, int value, int occur_time) : MapObject(x, y), value(value), occur_time(occur_time) {}
   Goods(int x, int y, int id, int status, int value, int occur_time) : MapObject(x, y, id, status),
                                                                        value(value),
                                                                        occur_time(occur_time) {}
 
-  int Update() override {
-    if (status == kWaiting) {
-      if (occur_time == 0) {
-        status = kExpired;
-      } else {
-        occur_time--;
-      }
-    }
-  }
 };
 
 #endif //HARBOR_MANAGER__GOODS_H_
