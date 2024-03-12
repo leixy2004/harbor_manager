@@ -241,7 +241,8 @@ void UpdateRobot(int id) {
     } else if (robot[id].status == Robot::kGoingToLoad) {
       int dir = goods[robot[id].goods_id]->pre[x][y];
       if (dir == -1) {
-        if (robot[id].position != goods[robot[id].goods_id]->position
+        if (goods[robot[id].goods_id]->id != robot[id].goods_id
+            || robot[id].position != goods[robot[id].goods_id]->position
             || goods[robot[id].goods_id]->status != Goods::kTargeted) {
           robot[id].status = Robot::kIdle;
           robot[id].dir = -1;
@@ -302,24 +303,24 @@ bool CheckMoveAndMakeValid() {
             || (xi == new_pos_j.x && yi == new_pos_j.y
                 && xj == new_pos_i.x && yj == new_pos_i.y)) { // type 1->' '<-2
           bool change = false;
-          for (int k = 0; k < 4; k++) {
-            if (k == robot[i].dir) continue;
-            if (map.IsEmpty(robot[i].position.Move(k))) {
-              robot[i].dir = k;
+          static const int *kTurn[3]={kTurnRight,kTurnLeft,kInverseDir};
+          for (int k = 0; k < 3; k++) {
+            if (map.IsEmpty(robot[i].position.Move(kTurn[k][robot[i].dir]))) {
+              robot[i].dir = kTurn[k][robot[i].dir];
               change = true;
               break;
             }
           }
-          if (!change) {
-            for (int k = 0; k < 4; k++) {
-              if (k == robot[j].dir) continue;
-              if (map.IsEmpty(robot[j].position.Move(k))) {
-                robot[j].dir = k;
-                change = true;
-                break;
-              }
-            }
-          }
+//          if (!change) {
+//            for (int k = 0; k < 4; k++) {
+//              if (k == robot[j].dir) continue;
+//              if (map.IsEmpty(robot[j].position.Move(k))) {
+//                robot[j].dir = k;
+//                change = true;
+//                break;
+//              }
+//            }
+//          }
           if (!change) {
             robot[i].dir = -1;
 //            robot[j].dir = -1;
