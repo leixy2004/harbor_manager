@@ -18,15 +18,10 @@ const int kBerthSize = 4;
 const int kBerthConvertTime = 500;
 const Vector kDirVec[4] = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
 enum kDirection { kRight = 0, kLeft = 1, kUp = 2, kDown = 3 };
-enum kProcessSignal {
-  kRobotIdle,
-  kRobotLoad,
-  kRobotUnload,
-  kRobotMove,
-  kRobotRepair,
+const int kInverseDir[4] = {kLeft, kRight, kDown, kUp};
+const int kTurnLeft[4] = {kUp, kDown, kLeft, kRight};
+const int kTurnRight[4] = {kDown, kUp, kRight, kLeft};
 
-};
-const int kInverseDir[4] = {1, 0, 3, 2};
 //int ReverseDir(int dir) {
 //  const static int kReverseDir[4] = {kLeft, kRight, kDown, kUp};
 //  return kReverseDir[dir];

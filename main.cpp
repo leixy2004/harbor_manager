@@ -23,7 +23,7 @@ void PrintOK() {
   std::cout.flush();
 }
 bool ReadOK() {
-  std::string s;
+  static std::string s;
   std::cin >> s;
   return s == "OK";
 }
@@ -77,7 +77,7 @@ void InitAllBerth() {
     for (int y = 0; y < kN; y++) {
       map.dis[x][y] = kN * kN;
       map.pre[x][y] = -1;
-      if (!map.IsEmpty(x,y)) continue;
+      if (!map.IsEmpty(x, y)) continue;
       for (auto &id : berth) {
         if (map.dis[x][y] > id.dis[x][y]) {
           map.dis[x][y] = id.dis[x][y];
@@ -143,28 +143,29 @@ void InputRobot(int id) {
   std::cin >> carry_goods >> x >> y >> status;
 //  std::cerr << "carry_goods: " << carry_goods << " x: " << x << " y: " << y << " status: " << status << std::endl;
   robot[id].position = Position(x, y);
-  if (carry_goods) {
-    if (robot[id].status != Robot::kBreakdownWithGoods && robot[id].status != Robot::kGoingToUnload) {
-//      std::cerr << "carry_goods: " << carry_goods << std::endl;
+  if (status) { // robot is running
+    if (carry_goods) {
+      robot[id].status = Robot::kGoingToUnload;
+    } else {
+      if (robot[id].goods_id == -1) {
+        robot[id].status = Robot::kIdle;
+      } else {
+        robot[id].status = Robot::kGoingToLoad;
+      }
     }
   } else {
-    if (robot[id].status != Robot::kBreakdown && robot[id].status != Robot::kGoingToLoad) {
-//      std::cerr << "carry_goods: " << carry_goods << std::endl;
+    if (carry_goods) {
+      robot[id].status = Robot::kBreakdownWithGoods;
+    } else {
+      robot[id].status = Robot::kBreakdown;
     }
   }
-
-  if (status == 0) {
-//    std::cerr << "status: " << status << std::endl;
-    if (carry_goods) robot[id].status = Robot::kBreakdown;
-    else robot[id].status = Robot::kBreakdownWithGoods;
-  }
 }
-
 void InputShip(int id) {
   int status;
   int berth_id;
   std::cin >> status >> berth_id;
-//  std::cerr << "status: " << status << " berth_id: " << berth_id << std::endl;
+  std::cerr << "status: " << status << " berth_id: " << berth_id << std::endl;
   //TODO: update ship
 }
 
@@ -177,76 +178,93 @@ bool Input() {
   std::cerr << "current_time: " << current_time << std::endl;
   int temp_goods;
   std::cin >> temp_goods;
-//  std::cerr << "temp_goods: " << temp_goods << std::endl;
   for (int i = 0; i < temp_goods; i++) {
     AddGoods();
   }
-//  std::cerr << "AddGoods success" << std::endl;
   for (int i = 0; i < kRobotCount; i++) {
     InputRobot(i);
   }
-//  std::cerr << "InputRobot success" << std::endl;
   for (int i = 0; i < kShipCount; i++) {
     InputShip(i);
   }
-//  std::cerr << "InputShip success" << std::endl;
   return ReadOK();
 }
 
+double GetGoodsValue(int id, int x, int y) {
+  return goods[id]->value * 1.0
+      / goods[id]->dis[x][y]
+      * (current_time - goods[id]->occur_time + 1);
+}
+
 int FindGoods(int x, int y) {
-  fprintf(stderr, "FindGoods x: %d y: %d\n", x, y);
   int goods_id = -1;
-  int min_dis = kN * kN;
+  double max_value = -1;
   for (int i = 0; i < goods_queue.size(); i++) {
     if (goods_queue[i].status == Goods::kWaiting) {
       fprintf(stderr, "possible goods_id: %d,dis: %d\n", goods_queue[i].id, goods_queue[i].dis[x][y]);
       if (current_time - goods_queue[i].occur_time + goods_queue[i].dis[x][y] >= kGoodsMaxAdded) continue;
       if (goods_queue[i].dis[x][y] >= kN * kN) continue;
-      if (goods_queue[i].dis[x][y] < min_dis) {
-        min_dis = goods_queue[i].dis[x][y];
+      double v = GetGoodsValue(goods_queue[i].id, x, y);
+      if (v > max_value) {
         goods_id = goods_queue[i].id;
+        max_value = v;
       }
     }
+  fprintf(stderr, "FindGoods x: %d y: %d -> %d\n", x, y, goods_id);
   }
   return goods_id;
 }
 
 void UpdateRobot(int id) {
+  fprintf(stderr, "UpdateRobot id: %d\n", id);
   {
     int x = robot[id].position.x;
     int y = robot[id].position.y;
-    if (robot[id].status == Robot::kIdle) {
-      int goods_id = FindGoods(x, y);
-      if (goods_id != -1) {
-        robot[id].status = Robot::kGoingToLoad;
-        robot[id].goods_id = goods_id;
-        goods[goods_id]->status = Goods::kTargeted;
-        std::cerr << "goods_id: " << goods_id << std::endl;
-      }
-    } else if (robot[id].status == Robot::kGoingToLoad) {
-      int dir = goods[robot[id].goods_id]->pre[x][y];
-      if (dir == -1) {
-        robot[id].PrintLoad();
-        fprintf(stderr,"robot:%d LOAD\n",id);
-        robot[id].status = Robot::kGoingToUnload;
-        goods[robot[id].goods_id]->status = Goods::kOnRobot;
-      } else {
-        robot[id].PrintMove(kInverseDir[dir]);
-      }
-    } else if (robot[id].status == Robot::kGoingToUnload) {
-      int dir = map.pre[x][y];
-      if (dir == -1) {
-        robot[id].PrintUnload();
-        fprintf(stderr,"robot:%d UNLOAD\n",id);
-        robot[id].status = Robot::kIdle;
-        goods[robot[id].goods_id]->status = Goods::kOnBerth;
-        robot[id].goods_id = -1;
-      } else {
-        robot[id].PrintMove(kInverseDir[dir]);
-      }
+//    while (true) {
+      bool flag=false;
+      if (robot[id].status == Robot::kIdle) {
+        int goods_id = FindGoods(x, y);
+        if (goods_id != -1) {
+          robot[id].status = Robot::kGoingToLoad;
+          robot[id].goods_id = goods_id;
+          goods[goods_id]->status = Goods::kTargeted;
+          std::cerr << "goods_id: " << goods_id << std::endl;
+        }
+      } else if (robot[id].status == Robot::kGoingToLoad) {
+        int dir = goods[robot[id].goods_id]->pre[x][y];
+        if (dir == -1) {
+          robot[id].PrintLoad();
+          fprintf(stderr, "robot:%d LOAD\n", id);
+          robot[id].status = Robot::kGoingToUnload;
+          robot[id].dir = -1;
+          goods[robot[id].goods_id]->status = Goods::kOnRobot;
+        } else {
+          robot[id].dir = (kInverseDir[dir]);
+        }
+      } else if (robot[id].status == Robot::kGoingToUnload) {
+        int dir = map.pre[x][y];
+        if (dir == -1) {
+          robot[id].PrintUnload();
+          fprintf(stderr, "robot:%d UNLOAD\n", id);
+          robot[id].status = Robot::kIdle;
+          robot[id].dir = -1;
+          goods[robot[id].goods_id]->status = Goods::kOnBerth;
+          robot[id].goods_id = -1;
+          flag=true;
+        } else {
+          robot[id].dir = (kInverseDir[dir]);
+        }
+//        if (!flag) break;
+//      }
     }
+
   }
 //  std::cerr << "Robot status: " << robot[id].status << std::endl;
+}
+
+bool CheckMoveAndMakeValid() {
+  //TODO
+  return false;
 }
 
 void UpdateOutput() {
@@ -259,8 +277,12 @@ void UpdateOutput() {
   for (int i = 0; i < goods_queue.size(); i++) {
     fprintf(stderr, "now_goods[%d].status: %d\n", i, goods_queue[i].status);
   }
+  while (CheckMoveAndMakeValid()) {}
   for (int i = 0; i < kRobotCount; i++) {
     UpdateRobot(i);
+  }
+  for (int i = 0; i < kRobotCount; i++) {
+    if (robot[i].dir != -1) robot[i].PrintMove();
   }
   PrintOK();
 }

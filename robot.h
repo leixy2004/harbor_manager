@@ -20,8 +20,9 @@ struct Robot : MapObject {
     kGoingToUnload,
     kYielding
   };
+  int dir{-1};
   int goods_id{};
-  void PrintMove(int dir) {
+  void PrintMove() {
     std::cout << "move " << this->id << " " << dir << std::endl;
   }
   void PrintLoad() {
