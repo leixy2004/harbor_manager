@@ -283,6 +283,7 @@ void UpdateRobot(int id) {
 }
 
 bool CheckMoveAndMakeValid() {
+  // TODO: Need fix
   bool flag = false;
   for (int i = 0; i < kRobotCount; i++) {
     int xi = robot[i].position.x;
