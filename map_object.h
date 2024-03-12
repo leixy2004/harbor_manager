@@ -9,7 +9,6 @@ struct MapObject {
   int id{};
   int status{};
   Position position{};
-  virtual int Update() = 0;
   MapObject() = default;
   MapObject(int x, int y) : position(x, y) {}
   MapObject(int x, int y, int id, int status) : position(x, y), id(id), status(status) {}

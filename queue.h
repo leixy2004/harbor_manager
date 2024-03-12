@@ -32,13 +32,13 @@ class Queue {
     head = (head + 1) % ReservedSize;
     return value;
   }
-  T front() {
+  T& front() {
     if (empty()) {
       throw std::runtime_error("Queue is empty");
     }
     return data[head];
   }
-  T back() {
+  T& back() {
     if (empty()) {
       throw std::runtime_error("Queue is empty");
     }
@@ -50,7 +50,7 @@ class Queue {
   void clear() {
     head = tail = 0;
   }
-  T operator[](int index) {
+  T& operator[](int index) {
     return data[(head + index) % ReservedSize];
   }
   void erase(int index) {
