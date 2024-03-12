@@ -51,5 +51,5 @@ void Bfs1(Position pos_origin, int dis[kN][kN], int pre[kN][kN], int *status,con
   temp[0] = pos_origin;
   Bfs(1, temp, dis, pre,map);
   *status = Goods::kWaiting;
-  std::cerr<<"BFS status: "<<*status<<std::endl;
+  std::cerr<<"BFS robot_id: "<<*status<<std::endl;
 }
