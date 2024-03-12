@@ -14,7 +14,20 @@ struct Map {
   char grid[kN][kN]{};
   int dis[kN][kN]{};
   int pre[kN][kN]{};
+  int robot_id[kN][kN]{};
+  int robot_next_id[kN][kN]{};
 
+
+  void Init() {
+    for (int i = 0; i < kN; i++) {
+      for (int j = 0; j < kN; j++) {
+        dis[i][j] = kInf;
+        pre[i][j] = -1;
+        robot_id[i][j] = -1;
+        robot_next_id[i][j] = -1;
+      }
+    }
+  }
   static bool IsInMap(int x, int y) {
     return x >= 0 && x < kN && y >= 0 && y < kN;
   }
@@ -22,6 +35,9 @@ struct Map {
     return IsInMap(x, y) && (
         grid[x][y] == '.' || grid[x][y] == 'A' || grid[x][y] == 'B'
         );
+  }
+  bool IsEmpty(const Position &pos) const {
+    return IsEmpty(pos.x, pos.y);
   }
 };
 

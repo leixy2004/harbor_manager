@@ -12,10 +12,10 @@ struct Goods : MapObject {
     kNone,
     kWaiting,
     kTargeted,
-    kOnRobot,
-    kOnBerth,
-    kOnShip,
-    kSold,
+    kCaptured,
+//    kOnBerth,
+//    kOnShip,
+//    kSold,
     kExpired,
   };
   int value{};

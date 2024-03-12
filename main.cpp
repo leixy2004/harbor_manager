@@ -44,6 +44,8 @@ void InitAllRobot() {
         robot[idx].id = idx;
         robot[idx].position = Position(i, j);
         robot[idx].status = Robot::kIdle;
+        robot[idx].goods_id = -1;
+        robot[idx].dir = -1;
         idx++;
       }
     }
@@ -98,6 +100,7 @@ void InitAllShip() {
 }
 
 bool InitInput() {
+  map.Init();
   InitInputMap();
   InitAllRobot();
   InitAllBerth();
@@ -132,7 +135,7 @@ void AddGoods() {
                 goods_queue.back().pre,
                 &(goods_queue.back().status),
                 std::ref(map));
-//  Bfs1(goods_queue.back().position, goods_queue.back().dis, goods_queue.back().pre, goods_queue.back().status);
+//  Bfs1(goods_queue.back().position, goods_queue.back().dis, goods_queue.back().pre, goods_queue.back().robot_id);
   t.detach();
 }
 
@@ -141,7 +144,8 @@ void InputRobot(int id) {
   int x, y;
   int status;
   std::cin >> carry_goods >> x >> y >> status;
-//  std::cerr << "carry_goods: " << carry_goods << " x: " << x << " y: " << y << " status: " << status << std::endl;
+//  std::cerr << "carry_goods: " << carry_goods << " x: " << x << " y: " << y << " robot_id: " << robot_id << std::endl;
+  fprintf(stderr, "InputRobot id: %d, carry_goods: %d, x: %d, y: %d, status: %d\n", id, carry_goods, x, y, status);
   robot[id].position = Position(x, y);
   if (status) { // robot is running
     if (carry_goods) {
@@ -165,14 +169,13 @@ void InputShip(int id) {
   int status;
   int berth_id;
   std::cin >> status >> berth_id;
-  std::cerr << "status: " << status << " berth_id: " << berth_id << std::endl;
   //TODO: update ship
 }
 
 }
 
 bool Input() {
-  std::cerr << "Input" << std::endl;
+//  std::cerr << "Input" << std::endl;
   using namespace input;
   std::cin >> current_time >> current_value;
   std::cerr << "current_time: " << current_time << std::endl;
@@ -192,7 +195,7 @@ bool Input() {
 
 double GetGoodsValue(int id, int x, int y) {
   return goods[id]->value * 1.0
-      / goods[id]->dis[x][y]
+      / (goods[id]->dis[x][y] + 5)
       * (current_time - goods[id]->occur_time + 1);
 }
 
@@ -201,7 +204,7 @@ int FindGoods(int x, int y) {
   double max_value = -1;
   for (int i = 0; i < goods_queue.size(); i++) {
     if (goods_queue[i].status == Goods::kWaiting) {
-      fprintf(stderr, "possible goods_id: %d,dis: %d\n", goods_queue[i].id, goods_queue[i].dis[x][y]);
+//      fprintf(stderr, "possible goods_id: %d,dis: %d\n", goods_queue[i].id, goods_queue[i].dis[x][y]);
       if (current_time - goods_queue[i].occur_time + goods_queue[i].dis[x][y] >= kGoodsMaxAdded) continue;
       if (goods_queue[i].dis[x][y] >= kN * kN) continue;
       double v = GetGoodsValue(goods_queue[i].id, x, y);
@@ -210,77 +213,186 @@ int FindGoods(int x, int y) {
         max_value = v;
       }
     }
-  fprintf(stderr, "FindGoods x: %d y: %d -> %d\n", x, y, goods_id);
+//    fprintf(stderr, "FindGoods x: %d y: %d -> %d\n", x, y, goods_id);
   }
   return goods_id;
 }
 
+void EnableRobot(int id) {
+  int goods_id = FindGoods(robot[id].position.x, robot[id].position.y);
+  if (goods_id != -1) {
+    robot[id].status = Robot::kGoingToLoad;
+    robot[id].goods_id = goods_id;
+    goods[goods_id]->status = Goods::kTargeted;
+//        std::cerr << "goods_id: " << goods_id << std::endl;
+  }
+}
+
 void UpdateRobot(int id) {
-  fprintf(stderr, "UpdateRobot id: %d\n", id);
+//  fprintf(stderr, "UpdateRobot id: %d\n", id);
   {
     int x = robot[id].position.x;
     int y = robot[id].position.y;
 //    while (true) {
-      bool flag=false;
-      if (robot[id].status == Robot::kIdle) {
-        int goods_id = FindGoods(x, y);
-        if (goods_id != -1) {
-          robot[id].status = Robot::kGoingToLoad;
-          robot[id].goods_id = goods_id;
-          goods[goods_id]->status = Goods::kTargeted;
-          std::cerr << "goods_id: " << goods_id << std::endl;
-        }
-      } else if (robot[id].status == Robot::kGoingToLoad) {
-        int dir = goods[robot[id].goods_id]->pre[x][y];
-        if (dir == -1) {
-          robot[id].PrintLoad();
-          fprintf(stderr, "robot:%d LOAD\n", id);
-          robot[id].status = Robot::kGoingToUnload;
-          robot[id].dir = -1;
-          goods[robot[id].goods_id]->status = Goods::kOnRobot;
-        } else {
-          robot[id].dir = (kInverseDir[dir]);
-        }
-      } else if (robot[id].status == Robot::kGoingToUnload) {
-        int dir = map.pre[x][y];
-        if (dir == -1) {
-          robot[id].PrintUnload();
-          fprintf(stderr, "robot:%d UNLOAD\n", id);
+    bool flag = false;
+    if (robot[id].status == Robot::kIdle) {
+//      std::thread t(EnableRobot, id);
+      EnableRobot(id);
+    } else if (robot[id].status == Robot::kGoingToLoad) {
+      int dir = goods[robot[id].goods_id]->pre[x][y];
+      if (dir == -1) {
+        if (robot[id].position != goods[robot[id].goods_id]->position
+            || goods[robot[id].goods_id]->status != Goods::kTargeted) {
           robot[id].status = Robot::kIdle;
           robot[id].dir = -1;
-          goods[robot[id].goods_id]->status = Goods::kOnBerth;
           robot[id].goods_id = -1;
-          flag=true;
-        } else {
-          robot[id].dir = (kInverseDir[dir]);
+          flag = true;
         }
+        robot[id].PrintLoad();
+        fprintf(stderr, "robot:%d LOAD\n", id);
+        robot[id].status = Robot::kGoingToUnload;
+        robot[id].dir = -1;
+        goods[robot[id].goods_id]->status = Goods::kCaptured;
+      } else {
+        robot[id].dir = (kInverseDir[dir]);
+      }
+    } else if (robot[id].status == Robot::kGoingToUnload) {
+      int dir = map.pre[x][y];
+      if (dir == -1) {
+        robot[id].PrintUnload();
+        fprintf(stderr, "robot:%d UNLOAD\n", id);
+        robot[id].status = Robot::kIdle;
+        robot[id].dir = -1;
+//        goods[robot[id].goods_id]->status = Goods::kOnBerth;
+        robot[id].goods_id = -1;
+        flag = true;
+      } else {
+        robot[id].dir = (kInverseDir[dir]);
+      }
 //        if (!flag) break;
 //      }
     }
-
+    fprintf(stderr,
+            "robot_id: %d, robot_status: %d, robot_goods_id: %d, robot_dir: %d\n",
+            robot[id].id,
+            robot[id].status,
+            robot[id].goods_id,
+            robot[id].dir);
   }
-//  std::cerr << "Robot status: " << robot[id].status << std::endl;
+//  std::cerr << "Robot robot_id: " << robot[id].robot_id << std::endl;
 }
 
 bool CheckMoveAndMakeValid() {
-  //TODO
-  return false;
+  bool flag = false;
+  for (int i = 0; i < kRobotCount; i++) {
+    int xi = robot[i].position.x;
+    int yi = robot[i].position.y;
+    for (int j = 0; j < kRobotCount; j++) {
+      if (i == j) continue;
+      int xj = robot[j].position.x;
+      int yj = robot[j].position.y;
+      bool i_move = robot[i].dir != -1;
+      bool j_move = robot[j].dir != -1;
+      if (!i_move && !j_move) continue;
+      if (i_move && j_move) {
+        auto new_pos_i = robot[i].position.Move(robot[i].dir);
+        auto new_pos_j = robot[j].position.Move(robot[j].dir);
+        if (new_pos_i == new_pos_j
+            || (xi == new_pos_j.x && yi == new_pos_j.y
+                && xj == new_pos_i.x && yj == new_pos_i.y)) { // type 1->' '<-2
+          bool change = false;
+          for (int k = 0; k < 4; k++) {
+            if (k == robot[i].dir) continue;
+            if (map.IsEmpty(robot[i].position.Move(k))) {
+              robot[i].dir = k;
+              change = true;
+              break;
+            }
+          }
+          if (!change) {
+            for (int k = 0; k < 4; k++) {
+              if (k == robot[j].dir) continue;
+              if (map.IsEmpty(robot[j].position.Move(k))) {
+                robot[j].dir = k;
+                change = true;
+                break;
+              }
+            }
+          }
+          if (!change) {
+            robot[i].dir = -1;
+//            robot[j].dir = -1;
+          }
+//          if (map.IsEmpty(robot[i].position.Move(kTurnRight[robot[i].dir]))) {
+//            robot[i].dir = kTurnRight[robot[i].dir];
+//          } else if (map.IsEmpty(robot[j].position.Move(kTurnRight[robot[j].dir]))) {
+//            robot[j].dir = kTurnRight[robot[j].dir];
+//          } else if (map.IsEmpty(robot[i].position.Move(kTurnLeft[robot[i].dir]))) {
+//            robot[i].dir = kTurnLeft[robot[i].dir];
+//          } else if (map.IsEmpty(robot[j].position.Move(kTurnLeft[robot[j].dir]))) {
+//            robot[j].dir = kTurnLeft[robot[j].dir];
+//          } else if (map.IsEmpty(robot[i].position.Move(kInverseDir[robot[i].dir]))) {
+//            robot[i].dir = kInverseDir[robot[i].dir];
+//          } else if (map.IsEmpty(robot[j].position.Move(kInverseDir[robot[j].dir]))) {
+//            robot[j].dir = kInverseDir[robot[j].dir];
+//          } else {
+//            robot[i].dir = -1;
+////            robot[j].dir = -1;
+//          }
+          flag = true;
+        }
+      } else {
+        if (i_move) {
+          auto new_pos_i = robot[i].position.Move(robot[i].dir);
+          if (new_pos_i == robot[j].position) {
+            if (map.IsEmpty(robot[i].position.Move(kTurnRight[robot[i].dir]))) {
+              robot[i].dir = kTurnRight[robot[i].dir];
+            } else if (map.IsEmpty(robot[i].position.Move(kTurnLeft[robot[i].dir]))) {
+              robot[i].dir = kTurnLeft[robot[i].dir];
+            } else if (map.IsEmpty(robot[i].position.Move(kInverseDir[robot[i].dir]))) {
+              robot[i].dir = kInverseDir[robot[i].dir];
+            } else {
+              robot[i].dir = -1;
+            }
+            flag = true;
+          }
+        } else {
+          auto new_pos_j = robot[j].position.Move(robot[j].dir);
+          if (new_pos_j == robot[i].position) {
+            if (map.IsEmpty(robot[j].position.Move(kTurnRight[robot[j].dir]))) {
+              robot[j].dir = kTurnRight[robot[j].dir];
+            } else if (map.IsEmpty(robot[j].position.Move(kTurnLeft[robot[j].dir]))) {
+              robot[j].dir = kTurnLeft[robot[j].dir];
+            } else if (map.IsEmpty(robot[j].position.Move(kInverseDir[robot[j].dir]))) {
+              robot[j].dir = kInverseDir[robot[j].dir];
+            } else {
+              robot[j].dir = -1;
+            }
+            flag = true;
+          }
+        }
+      }
+    }
+  }
+  return flag;
 }
 
 void UpdateOutput() {
   while (!goods_queue.empty() && current_time - goods_queue.front().occur_time >= kGoodsMaxAdded) {
+    goods_queue.front().status = Goods::kExpired;
     goods_queue.pop();
     current_goods_removed++;
   }
 
   fprintf(stderr, "goods_queue.size(): %d\n", goods_queue.size());
   for (int i = 0; i < goods_queue.size(); i++) {
-    fprintf(stderr, "now_goods[%d].status: %d\n", i, goods_queue[i].status);
+    fprintf(stderr, "now_goods_queue[%d].status: %d\n", i, goods_queue[i].status);
   }
-  while (CheckMoveAndMakeValid()) {}
   for (int i = 0; i < kRobotCount; i++) {
     UpdateRobot(i);
   }
+//  while (CheckMoveAndMakeValid()) {}
+  for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {}
   for (int i = 0; i < kRobotCount; i++) {
     if (robot[i].dir != -1) robot[i].PrintMove();
   }
@@ -292,9 +404,11 @@ int main() {
 //  std::cout.tie(nullptr);
 //  std::ios::sync_with_stdio(false);
   Init();
-  while (Input()) {
-    std::cerr << "Input success" << std::endl;
-    UpdateOutput();
+  for (int i = 0; i < kGameDuration; i++) {
+    if (Input()) {
+      std::cerr << "Input success" << std::endl;
+      UpdateOutput();
+    }
   }
   return 0;
 }
