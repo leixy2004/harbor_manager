@@ -289,7 +289,7 @@ void UpdateRobot(int id) {
         robot[id].Refresh();
       }
       robot[id].PrintLoad();
-      fprintf(stderr, "robot:%d LOAD\n", id);
+      //fprintf(stderr, "robot:%d LOAD\n", id);
       goods[robot[id].goods_id]->status = Goods::kCaptured;
       AllocateBerthToRobot(id);
       robot[id].dir = -1;
@@ -312,7 +312,7 @@ void UpdateRobot(int id) {
       robot[id].dir = (kInverseDir[dir]);
     }
   }
-  robot[id].Show();
+  //robot[id].Show();
 }
 
 bool CheckMoveAndMakeValid() {
@@ -412,11 +412,11 @@ bool CheckMoveAndMakeValid() {
 }
 
 
-int FindBerth(int id) {
+int ShipFindBerth(int id) {
     int maxBerth = 0, dir = -1;
     for (int i = 0; i < kBerthCount; i++) {
         //if (berth[i].have_ship[current_time+berth[i].transport_time])continue;
-        if (berth[i].have_ship && berth[i].saved_goods<2* ship[id].capacity)continue;
+        if (berth[i].have_ship && berth[i].saved_goods <  2* ship[id].capacity)continue;
         if (berth[i].saved_goods >= ship[id].capacity) {
             return i;
         }
@@ -429,10 +429,9 @@ int FindBerth(int id) {
 }
 
 void UpdateShip(int id) {
-    fprintf(stderr, "UpdateShip id: %d status %d  dir %d\n", id, ship[id].status,ship[id].dir);
-    
+    fprintf(stderr, "UpdateShip id: %d status %d  dir %d have %d/%d goods\n", id, ship[id].status,ship[id].dir,ship[id].nowGoods,ship[id].capacity);
     if (ship[id].status == Ship::kAtEnd) {
-        int dir = FindBerth(id);
+        int dir = ShipFindBerth(id);
         if (dir != -1) {
             ship[id].dir = dir;
             ship[id].PrintShip();
@@ -446,8 +445,17 @@ void UpdateShip(int id) {
         }
     }
     else if (ship[id].status == Ship::kAtBerth) {
+        
         fprintf(stderr, "now in %d\n", ship[id].nowBerth);
         int now = ship[id].nowBerth;
+        if (current_time + berth[now].transport_time + 600 > 15000) {
+            ship[id].PrintGo();
+            berth[now].have_ship--;
+            ship[id].dir = -1;
+            ship[id].status = Ship::kGoTo;
+            fprintf(stderr, "goto -1\n");
+            return;
+        }
         //berth[now].have_ship ++;
         if (ship[id].nowGoods < ship[id].capacity) {
             if (berth[now].saved_goods > 0) {
@@ -458,11 +466,12 @@ void UpdateShip(int id) {
             }
             //to update
             if (berth[now].saved_goods == 0 && ship[id].nowGoods < ship[id].capacity) {
-                int dir = FindBerth(id);
+                int dir = ShipFindBerth(id);
                 if (dir != -1) {
                     ship[id].dir = dir;
                     ship[id].PrintShip();
                     berth[now].have_ship --;
+                    berth[dir].have_ship++;
                     ship[id].status = Ship::kGoBack;
                     fprintf(stderr, "goto %d\n", dir);
                     return;
