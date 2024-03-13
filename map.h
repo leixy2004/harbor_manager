@@ -16,7 +16,7 @@ struct Map {
   int pre[kN][kN]{};
   int robot_id[kN][kN]{};
   int robot_next_id[kN][kN]{};
-
+  int berth_id[kN][kN]{};
 
   void Init() {
     for (int i = 0; i < kN; i++) {
