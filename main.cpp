@@ -45,6 +45,7 @@ void InitAllRobot() {
         robot[idx].position = Position(i, j);
         robot[idx].status = Robot::kIdle;
         robot[idx].goods_id = -1;
+        robot[idx].berth_id = -1;
         robot[idx].dir = -1;
         idx++;
       }
@@ -233,7 +234,28 @@ int FindGoods(int x, int y) {
   return goods_id;
 }
 
-void EnableRobot(int id) {
+double GetBerthValue(int id, int x, int y) {
+  return 1.0 * (berth[id].loading_speed)
+      / (berth[id].dis[x][y] + 1)
+      / (berth[id].saved_goods + 1)
+      / (berth[id].transport_time + 1);
+}
+
+int FindBerth(int x, int y) {
+  int berth_id = -1;
+  double max_value = -1;
+  for (int i = 0; i < kBerthCount; i++) {
+    if (berth[i].dis[x][y] >= kN * kN) continue;
+    double v = GetBerthValue(i, x, y);
+    if (v > max_value) {
+      berth_id = i;
+      max_value = v;
+    }
+  }
+  return berth_id;
+}
+
+void AllocateGoodsToRobot(int id) {
   int goods_id = FindGoods(robot[id].position.x, robot[id].position.y);
   if (goods_id != -1) {
     robot[id].status = Robot::kGoingToLoad;
@@ -243,67 +265,54 @@ void EnableRobot(int id) {
   }
 }
 
-void UpdateRobot(int id) {
-//  fprintf(stderr, "UpdateRobot id: %d\n", id);
-  {
-    int x = robot[id].position.x;
-    int y = robot[id].position.y;
-//    while (true) {
-    bool flag = false;
-    if (robot[id].status == Robot::kIdle) {
-//      std::thread t(EnableRobot, id);
-      EnableRobot(id);
-    } else if (robot[id].status == Robot::kGoingToLoad) {
-      int dir = goods[robot[id].goods_id]->pre[x][y];
-      if (dir == -1) {
-        if (goods[robot[id].goods_id]->id != robot[id].goods_id
-            || robot[id].position != goods[robot[id].goods_id]->position
-            || goods[robot[id].goods_id]->status != Goods::kTargeted) {
-          robot[id].status = Robot::kIdle;
-          robot[id].dir = -1;
-          robot[id].goods_id = -1;
-          flag = true;
-        }
-        robot[id].PrintLoad();
-        //fprintf(stderr, "robot:%d LOAD\n", id);
-        robot[id].status = Robot::kGoingToUnload;
-        robot[id].dir = -1;
-        goods[robot[id].goods_id]->status = Goods::kCaptured;
-      } else {
-        robot[id].dir = (kInverseDir[dir]);
-      }
-    } else if (robot[id].status == Robot::kGoingToUnload) {
-      int dir = map.pre[x][y];
-      if (dir == -1) {
-        if (map.berth_id[x][y]==0) {
-            std::cerr<<"BIG ERROR, WRONG BERTH"<<std::endl;
-            robot[id].status = Robot::kIdle;
-            robot[id].dir = -1;
-            robot[id].goods_id = -1;
-            flag = true;
-        }
-        robot[id].PrintUnload();
-        berth[map.berth_id[x][y]].saved_goods ++;
-        fprintf(stderr, "robot:%d UNLOAD\n", id);
-        robot[id].status = Robot::kIdle;
-        robot[id].dir = -1;
-//        goods[robot[id].goods_id]->status = Goods::kOnBerth;
-        robot[id].goods_id = -1;
-        flag = true;
-      } else {
-        robot[id].dir = (kInverseDir[dir]);
-      }
-//        if (!flag) break;
-//      }
-    }
-    /*fprintf(stderr,
-            "robot_id: %d, robot_status: %d, robot_goods_id: %d, robot_dir: %d\n",
-            robot[id].id,
-            robot[id].status,
-            robot[id].goods_id,
-            robot[id].dir);*/
+void AllocateBerthToRobot(int id) {
+  int berth_id = FindBerth(robot[id].position.x, robot[id].position.y);
+  if (berth_id != -1) {
+    robot[id].status = Robot::kGoingToUnload;
+    robot[id].berth_id = berth_id;
   }
-//  std::cerr << "Robot robot_id: " << robot[id].robot_id << std::endl;
+}
+
+void UpdateRobot(int id) {
+  int x = robot[id].position.x;
+  int y = robot[id].position.y;
+  if (robot[id].status == Robot::kIdle) {
+//      std::thread t(AllocateGoodsToRobot, id);
+    AllocateGoodsToRobot(id);
+    robot[id].dir=-1;
+  } else if (robot[id].status == Robot::kGoingToLoad) {
+    int dir = goods[robot[id].goods_id]->pre[x][y];
+    if (dir == -1) {
+      if (goods[robot[id].goods_id]->id != robot[id].goods_id
+          || robot[id].position != goods[robot[id].goods_id]->position
+          || goods[robot[id].goods_id]->status != Goods::kTargeted) {
+        robot[id].Refresh();
+      }
+      robot[id].PrintLoad();
+      fprintf(stderr, "robot:%d LOAD\n", id);
+      goods[robot[id].goods_id]->status = Goods::kCaptured;
+      AllocateBerthToRobot(id);
+      robot[id].dir = -1;
+    } else {
+      robot[id].dir = (kInverseDir[dir]);
+    }
+  } else if (robot[id].status == Robot::kGoingToUnload) {
+    int dir = berth[robot[id].berth_id].pre[x][y];
+    if (dir == -1) {
+      if (!berth[robot[id].berth_id].IsInArea(x, y)) {
+        std::cerr << "BIG ERROR, WRONG BERTH" << std::endl;
+//        robot[id].Refresh();
+        AllocateBerthToRobot(id);
+      }
+      robot[id].PrintUnload();
+      berth[robot[id].berth_id].saved_goods++;
+      fprintf(stderr, "robot:%d UNLOAD\n", id);
+      robot[id].Refresh();
+    } else {
+      robot[id].dir = (kInverseDir[dir]);
+    }
+  }
+  robot[id].Show();
 }
 
 bool CheckMoveAndMakeValid() {
