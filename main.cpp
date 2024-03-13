@@ -181,6 +181,9 @@ void InputShip(int id) {
           ship[id].nowBerth = berth_id;
       }
   }
+    else if (status == 2) {
+        ship[id].status = Ship::kIdle;
+    }
 
 }
 
@@ -403,7 +406,8 @@ bool CheckMoveAndMakeValid() {
 int FindBerth(int id) {
     int maxBerth = 0, dir = -1;
     for (int i = 0; i < kBerthCount; i++) {
-        if (berth[i].have_ship)continue;
+        //if (berth[i].have_ship[current_time+berth[i].transport_time])continue;
+        if (berth[i].have_ship && berth[i].saved_goods<2* ship[id].capacity)continue;
         if (berth[i].saved_goods >= ship[id].capacity) {
             return i;
         }
@@ -416,14 +420,18 @@ int FindBerth(int id) {
 }
 
 void UpdateShip(int id) {
-    fprintf(stderr, "UpdateShip id: %d status %d\n", id, ship[id].status);
+    fprintf(stderr, "UpdateShip id: %d status %d  dir %d\n", id, ship[id].status,ship[id].dir);
+    
     if (ship[id].status == Ship::kAtEnd) {
         int dir = FindBerth(id);
         if (dir != -1) {
             ship[id].dir = dir;
             ship[id].PrintShip();
             ship[id].status = Ship::kGoBack;
-            berth[id].have_ship = 1;
+            ship[id].nowGoods = 0;
+            berth[dir].have_ship ++;
+            //berth[dir].have_ship[current_time + berth[dir].transport_time] = 1;
+            //fprintf(stderr, "%d\n", current_time + berth[dir].transport_time);
             fprintf(stderr, "goto %d\n", dir);
             return;
         }
@@ -431,6 +439,7 @@ void UpdateShip(int id) {
     else if (ship[id].status == Ship::kAtBerth) {
         fprintf(stderr, "now in %d\n", ship[id].nowBerth);
         int now = ship[id].nowBerth;
+        //berth[now].have_ship ++;
         if (ship[id].nowGoods < ship[id].capacity) {
             if (berth[now].saved_goods > 0) {
                 int goodsNum = std::min({ berth[now].loading_speed, berth[now].saved_goods,ship[id].capacity - ship[id].nowGoods });
@@ -444,8 +453,8 @@ void UpdateShip(int id) {
                 if (dir != -1) {
                     ship[id].dir = dir;
                     ship[id].PrintShip();
+                    berth[now].have_ship --;
                     ship[id].status = Ship::kGoBack;
-                    berth[id].have_ship = 1;
                     fprintf(stderr, "goto %d\n", dir);
                     return;
                 }
@@ -454,9 +463,10 @@ void UpdateShip(int id) {
 
         if (ship[id].nowGoods == ship[id].capacity) {
             ship[id].PrintGo();
+            berth[now].have_ship--;
+            ship[id].dir = -1;
             ship[id].status = Ship::kGoTo;
             fprintf(stderr, "goto -1\n");
-            berth[now].have_ship = 0;
             return;
         }
     }
@@ -479,8 +489,22 @@ void UpdateOutput() {
   for (int i = 0; i < kRobotCount; i++) {
     UpdateRobot(i);
   }
-  for (int i = 0; i < kShipCount; i++) {
-      UpdateShip(i);
+  for (int i = 0; i < kBerthCount; i++) {
+      fprintf(stderr, "Berth id %d  goods %d\n",i,berth[i].saved_goods);
+  }
+  if (current_time == 1) {
+      for (int i = 0; i < kShipCount; i++) {
+          berth[i].have_ship++;
+          ship[i].dir = i;
+          ship[i].PrintShip();
+          ship[i].status = Ship::kGoBack;
+          fprintf(stderr, "goto %d\n", i);
+      }
+  }
+  else {
+      for (int i = 0; i < kShipCount; i++) {
+          UpdateShip(i);
+      }
   }
 //  while (CheckMoveAndMakeValid()) {}
   for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {}
@@ -497,7 +521,8 @@ int main() {
   Init();
   for (int i = 0; i < kGameDuration; i++) {
     if (Input()) {
-      std::cerr << "Input success" << std::endl;
+      //std::cerr << "Input success" << std::endl;
+       
       UpdateOutput();
     }
   }
