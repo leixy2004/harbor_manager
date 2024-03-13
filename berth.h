@@ -14,7 +14,7 @@ struct Berth : MapArea {
   int saved_goods{};
   int dis[kN][kN]{};
   int pre[kN][kN]{};
-
+  bool have_ship{ 0 };
 };
 
 #endif //HARBOR_MANAGER__BERTH_H_
