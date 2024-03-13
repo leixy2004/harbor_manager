@@ -80,10 +80,13 @@ void InitAllBerth() {
       map.dis[x][y] = kN * kN;
       map.pre[x][y] = -1;
       if (!map.IsEmpty(x, y)) continue;
-      for (auto &id : berth) {
-        if (map.dis[x][y] > id.dis[x][y]) {
-          map.dis[x][y] = id.dis[x][y];
-          map.pre[x][y] = id.pre[x][y];
+      for (auto &b : berth) {
+        if (map.dis[x][y] > b.dis[x][y]) {
+          map.dis[x][y] = b.dis[x][y];
+          map.pre[x][y] = b.pre[x][y];
+          if (b.dis[x][y] == 0) {
+            map.berth_id[x][y] = b.id;
+          }
         }
       }
     }
@@ -205,7 +208,7 @@ int FindGoods(int x, int y) {
   for (int i = 0; i < goods_queue.size(); i++) {
     if (goods_queue[i].status == Goods::kWaiting) {
 //      fprintf(stderr, "possible goods_id: %d,dis: %d\n", goods_queue[i].id, goods_queue[i].dis[x][y]);
-      if (current_time - goods_queue[i].occur_time + goods_queue[i].dis[x][y] >= kGoodsMaxAdded) continue;
+      if (current_time - goods_queue[i].occur_time + goods_queue[i].dis[x][y] >= kGoodsDuration) continue;
       if (goods_queue[i].dis[x][y] >= kN * kN) continue;
       double v = GetGoodsValue(goods_queue[i].id, x, y);
       if (v > max_value) {
@@ -260,7 +263,15 @@ void UpdateRobot(int id) {
     } else if (robot[id].status == Robot::kGoingToUnload) {
       int dir = map.pre[x][y];
       if (dir == -1) {
+        if (map.berth_id[x][y]==0) {
+            std::cerr<<"BIG ERROR, WRONG BERTH"<<std::endl;
+            robot[id].status = Robot::kIdle;
+            robot[id].dir = -1;
+            robot[id].goods_id = -1;
+            flag = true;
+        }
         robot[id].PrintUnload();
+        berth[map.berth_id[x][y]].saved_goods ++;
         fprintf(stderr, "robot:%d UNLOAD\n", id);
         robot[id].status = Robot::kIdle;
         robot[id].dir = -1;
@@ -303,7 +314,7 @@ bool CheckMoveAndMakeValid() {
             || (xi == new_pos_j.x && yi == new_pos_j.y
                 && xj == new_pos_i.x && yj == new_pos_i.y)) { // type 1->' '<-2
           bool change = false;
-          static const int *kTurn[3]={kTurnRight,kTurnLeft,kInverseDir};
+          static const int *kTurn[3] = {kTurnRight, kTurnLeft, kInverseDir};
           for (int k = 0; k < 3; k++) {
             if (map.IsEmpty(robot[i].position.Move(kTurn[k][robot[i].dir]))) {
               robot[i].dir = kTurn[k][robot[i].dir];
@@ -380,7 +391,7 @@ bool CheckMoveAndMakeValid() {
 }
 
 void UpdateOutput() {
-  while (!goods_queue.empty() && current_time - goods_queue.front().occur_time >= kGoodsMaxAdded) {
+  while (!goods_queue.empty() && current_time - goods_queue.front().occur_time >= kGoodsDuration) {
     goods_queue.front().status = Goods::kExpired;
     goods_queue.pop();
     current_goods_removed++;
