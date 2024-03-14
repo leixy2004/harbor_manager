@@ -6,6 +6,8 @@
 #define HARBOR_MANAGER__GOODS_H_
 #include "position.h"
 #include "map_object.h"
+#include "list.h"
+#include "constant.h"
 
 struct Goods : MapObject {
   enum GoodsStatus {
@@ -20,9 +22,10 @@ struct Goods : MapObject {
   };
   int value{};
   int occur_time{};
-  int (*dis)[kN]{};
-  int (*pre)[kN]{};
-
+  Grid *dis{};
+  Grid *pre{};
+//  List<Goods *, kGoodsMaxAdded>::iterator iter{};
+  int robot_id{};
   Goods() = default;
   Goods(int x, int y, int value, int occur_time) : MapObject(x, y), value(value), occur_time(occur_time) {}
   Goods(int x, int y, int id, int status, int value, int occur_time) : MapObject(x, y, id, status),
@@ -32,14 +35,14 @@ struct Goods : MapObject {
     if (dis || pre) {
       DeallocateMemory();
     }
-    dis = new int[kN][kN];
-    pre = new int[kN][kN];
+    dis = new Grid;
+    pre = new Grid;
   }
   void DeallocateMemory() {
     delete[] dis;
     delete[] pre;
-    this->dis=nullptr;
-    this->pre=nullptr;
+    this->dis = nullptr;
+    this->pre = nullptr;
   }
 };
 

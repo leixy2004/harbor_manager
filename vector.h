@@ -15,6 +15,7 @@ struct Vector {
   bool operator==(const Vector &rhs) const;
   bool operator!=(const Vector &rhs) const;
   Vector operator+(const Vector &rhs) const;
+  Vector& operator=(const Vector &rhs) = default;
 };
 
 #endif //HARBOR_MANAGER__VECTOR_H_
