@@ -237,7 +237,7 @@ int FindGoods(int x, int y) {
 double GetBerthValue(int id, int x, int y) {
   return 1.0 * (berth[id].loading_speed)
       / (berth[id].dis[x][y] + 1)
-      / (berth[id].saved_goods + 1)
+      / (berth[id].saved_goods/ship->capacity + 1)
       / (berth[id].transport_time + 1);
 }
 
@@ -459,7 +459,7 @@ void UpdateShip(int id) {
         //berth[now].have_ship ++;
         if (ship[id].nowGoods < ship[id].capacity) {
             if (berth[now].saved_goods > 0) {
-                int goodsNum = std::min({ berth[now].loading_speed, berth[now].saved_goods,ship[id].capacity - ship[id].nowGoods });
+                int goodsNum = std::min(std::min(berth[now].loading_speed, berth[now].saved_goods), ship[id].capacity - ship[id].nowGoods);
                 berth[now].saved_goods -= goodsNum;
                 ship[id].nowGoods += goodsNum;
 
