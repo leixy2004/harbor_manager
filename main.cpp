@@ -135,12 +135,13 @@ void AddGoods() {
   goods_queue.push(Goods(x, y, current_goods_added, Goods::kNone, value, current_time));
   current_goods_added++;
   goods[goods_queue.back().id] = &goods_queue.back();
-  std::thread t(Bfs1,
-                goods_queue.back().position,
-                goods_queue.back().dis,
-                goods_queue.back().pre,
-                &(goods_queue.back().status),
-                std::ref(map));
+  std::thread t([&]() {
+    auto ptr = goods[goods_queue.back().id];
+    ptr->AllocateMemory();
+    Bfs(1, &ptr->position, ptr->dis, ptr->pre, map);
+    ptr->status = Goods::kWaiting;
+    std::cerr << "BFS goods_id: " << ptr->id << std::endl;
+  });
 //  Bfs1(goods_queue.back().position, goods_queue.back().dis, goods_queue.back().pre, goods_queue.back().robot_id);
   t.detach();
 }
@@ -215,12 +216,11 @@ double GetGoodsValue(int id, int x, int y) {
       * (current_time - goods[id]->occur_time + 1);
 }
 
-int FindGoods(int x, int y) {
+int RobotFindGoods(int x, int y) {
   int goods_id = -1;
   double max_value = -1;
   for (int i = 0; i < goods_queue.size(); i++) {
     if (goods_queue[i].status == Goods::kWaiting) {
-//      fprintf(stderr, "possible goods_id: %d,dis: %d\n", goods_queue[i].id, goods_queue[i].dis[x][y]);
       if (current_time - goods_queue[i].occur_time + goods_queue[i].dis[x][y] >= kGoodsDuration) continue;
       if (goods_queue[i].dis[x][y] >= kN * kN) continue;
       double v = GetGoodsValue(goods_queue[i].id, x, y);
@@ -229,7 +229,6 @@ int FindGoods(int x, int y) {
         max_value = v;
       }
     }
-//    fprintf(stderr, "FindGoods x: %d y: %d -> %d\n", x, y, goods_id);
   }
   return goods_id;
 }
@@ -241,7 +240,7 @@ double GetBerthValue(int id, int x, int y) {
       / (berth[id].transport_time + 1);
 }
 
-int FindBerth(int x, int y) {
+int RobotFindBerth(int x, int y) {
   int berth_id = -1;
   double max_value = -1;
   for (int i = 0; i < kBerthCount; i++) {
@@ -256,7 +255,7 @@ int FindBerth(int x, int y) {
 }
 
 void AllocateGoodsToRobot(int id) {
-  int goods_id = FindGoods(robot[id].position.x, robot[id].position.y);
+  int goods_id = RobotFindGoods(robot[id].position.x, robot[id].position.y);
   if (goods_id != -1) {
     robot[id].status = Robot::kGoingToLoad;
     robot[id].goods_id = goods_id;
@@ -266,7 +265,7 @@ void AllocateGoodsToRobot(int id) {
 }
 
 void AllocateBerthToRobot(int id) {
-  int berth_id = FindBerth(robot[id].position.x, robot[id].position.y);
+  int berth_id = RobotFindBerth(robot[id].position.x, robot[id].position.y);
   if (berth_id != -1) {
     robot[id].status = Robot::kGoingToUnload;
     robot[id].berth_id = berth_id;
@@ -291,6 +290,7 @@ void UpdateRobot(int id) {
       robot[id].PrintLoad();
       //fprintf(stderr, "robot:%d LOAD\n", id);
       goods[robot[id].goods_id]->status = Goods::kCaptured;
+      goods[robot[id].goods_id]->DeallocateMemory();
       AllocateBerthToRobot(id);
       robot[id].dir = -1;
     } else {
@@ -327,6 +327,7 @@ bool CheckMoveAndMakeValid() {
       int yj = robot[j].position.y;
       bool i_move = robot[i].dir != -1;
       bool j_move = robot[j].dir != -1;
+      static const int *kTurn[3] = {kTurnRight, kTurnLeft, kInverseDir};
       if (!i_move && !j_move) continue;
       if (i_move && j_move) {
         auto new_pos_i = robot[i].position.Move(robot[i].dir);
@@ -335,7 +336,6 @@ bool CheckMoveAndMakeValid() {
             || (xi == new_pos_j.x && yi == new_pos_j.y
                 && xj == new_pos_i.x && yj == new_pos_i.y)) { // type 1->' '<-2
           bool change = false;
-          static const int *kTurn[3] = {kTurnRight, kTurnLeft, kInverseDir};
           for (auto &k : kTurn) {
             if (map.IsEmpty(robot[i].position.Move(k[robot[i].dir]))) {
               robot[i].dir = k[robot[i].dir];
@@ -357,35 +357,21 @@ bool CheckMoveAndMakeValid() {
             robot[i].dir = -1;
 //            robot[j].dir = -1;
           }
-//          if (map.IsEmpty(robot[i].position.Move(kTurnRight[robot[i].dir]))) {
-//            robot[i].dir = kTurnRight[robot[i].dir];
-//          } else if (map.IsEmpty(robot[j].position.Move(kTurnRight[robot[j].dir]))) {
-//            robot[j].dir = kTurnRight[robot[j].dir];
-//          } else if (map.IsEmpty(robot[i].position.Move(kTurnLeft[robot[i].dir]))) {
-//            robot[i].dir = kTurnLeft[robot[i].dir];
-//          } else if (map.IsEmpty(robot[j].position.Move(kTurnLeft[robot[j].dir]))) {
-//            robot[j].dir = kTurnLeft[robot[j].dir];
-//          } else if (map.IsEmpty(robot[i].position.Move(kInverseDir[robot[i].dir]))) {
-//            robot[i].dir = kInverseDir[robot[i].dir];
-//          } else if (map.IsEmpty(robot[j].position.Move(kInverseDir[robot[j].dir]))) {
-//            robot[j].dir = kInverseDir[robot[j].dir];
-//          } else {
-//            robot[i].dir = -1;
-////            robot[j].dir = -1;
-//          }
           flag = true;
         }
       } else {
         if (i_move) {
           auto new_pos_i = robot[i].position.Move(robot[i].dir);
           if (new_pos_i == robot[j].position) {
-            if (map.IsEmpty(robot[i].position.Move(kTurnRight[robot[i].dir]))) {
-              robot[i].dir = kTurnRight[robot[i].dir];
-            } else if (map.IsEmpty(robot[i].position.Move(kTurnLeft[robot[i].dir]))) {
-              robot[i].dir = kTurnLeft[robot[i].dir];
-            } else if (map.IsEmpty(robot[i].position.Move(kInverseDir[robot[i].dir]))) {
-              robot[i].dir = kInverseDir[robot[i].dir];
-            } else {
+            bool change = false;
+            for (auto &k : kTurn) {
+              if (map.IsEmpty(robot[i].position.Move(k[robot[i].dir]))) {
+                robot[i].dir = k[robot[i].dir];
+                change = true;
+                break;
+              }
+            }
+            if (!change) {
               robot[i].dir = -1;
             }
             flag = true;
@@ -393,13 +379,15 @@ bool CheckMoveAndMakeValid() {
         } else {
           auto new_pos_j = robot[j].position.Move(robot[j].dir);
           if (new_pos_j == robot[i].position) {
-            if (map.IsEmpty(robot[j].position.Move(kTurnRight[robot[j].dir]))) {
-              robot[j].dir = kTurnRight[robot[j].dir];
-            } else if (map.IsEmpty(robot[j].position.Move(kTurnLeft[robot[j].dir]))) {
-              robot[j].dir = kTurnLeft[robot[j].dir];
-            } else if (map.IsEmpty(robot[j].position.Move(kInverseDir[robot[j].dir]))) {
-              robot[j].dir = kInverseDir[robot[j].dir];
-            } else {
+            bool change = false;
+            for (auto &k : kTurn) {
+              if (map.IsEmpty(robot[j].position.Move(k[robot[j].dir]))) {
+                robot[j].dir = k[robot[j].dir];
+                change = true;
+                break;
+              }
+            }
+            if (!change) {
               robot[j].dir = -1;
             }
             flag = true;
@@ -503,10 +491,6 @@ void UpdateOutput() {
     current_goods_removed++;
   }
 
-  //fprintf(stderr, "goods_queue.size(): %d\n", goods_queue.size());
-  for (int i = 0; i < goods_queue.size(); i++) {
-    //fprintf(stderr, "now_goods_queue[%d].status: %d\n", i, goods_queue[i].status);
-  }
   for (int i = 0; i < kRobotCount; i++) {
     UpdateRobot(i);
   }
