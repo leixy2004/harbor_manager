@@ -21,10 +21,10 @@ int status{};
 int dir{};
 int nowGoods{};
 int nowBerth{};
-void PrintShip() {
+void PrintShip() const {
     std::cout << "ship " << this->id << " " << dir << std::endl;
 }
-void PrintGo() {
+void PrintGo() const {
     std::cout << "go " << this->id << std::endl;
 }
 };

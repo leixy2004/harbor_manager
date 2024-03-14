@@ -1,5 +1,7 @@
 #include <iostream>
 #include <thread>
+#include <cstdio>
+#include <algorithm>
 #include "robot.h"
 #include "constant.h"
 #include "map.h"
@@ -129,7 +131,7 @@ namespace input {
 void AddGoods() {
   int x, y, value;
   std::cin >> x >> y >> value;
- // fprintf(stderr, "AddGoods x: %d y: %d value: %d\n", x, y, value);
+  // fprintf(stderr, "AddGoods x: %d y: %d value: %d\n", x, y, value);
   goods_queue.push(Goods(x, y, current_goods_added, Goods::kNone, value, current_time));
   current_goods_added++;
   goods[goods_queue.back().id] = &goods_queue.back();
@@ -172,19 +174,17 @@ void InputRobot(int id) {
 void InputShip(int id) {
   int status;
   int berth_id;
-  std::cin >> status >> berth_id; 
-    if (status == 1) {
-      if (berth_id == -1) {
-          ship[id].status = Ship::kAtEnd;
-      }
-      else {
-          ship[id].status = Ship::kAtBerth;
-          ship[id].nowBerth = berth_id;
-      }
-  }
-    else if (status == 2) {
-        ship[id].status = Ship::kIdle;
+  std::cin >> status >> berth_id;
+  if (status == 1) {
+    if (berth_id == -1) {
+      ship[id].status = Ship::kAtEnd;
+    } else {
+      ship[id].status = Ship::kAtBerth;
+      ship[id].nowBerth = berth_id;
     }
+  } else if (status == 2) {
+    ship[id].status = Ship::kIdle;
+  }
 
 }
 
@@ -279,7 +279,7 @@ void UpdateRobot(int id) {
   if (robot[id].status == Robot::kIdle) {
 //      std::thread t(AllocateGoodsToRobot, id);
     AllocateGoodsToRobot(id);
-    robot[id].dir=-1;
+    robot[id].dir = -1;
   } else if (robot[id].status == Robot::kGoingToLoad) {
     int dir = goods[robot[id].goods_id]->pre[x][y];
     if (dir == -1) {
@@ -336,9 +336,9 @@ bool CheckMoveAndMakeValid() {
                 && xj == new_pos_i.x && yj == new_pos_i.y)) { // type 1->' '<-2
           bool change = false;
           static const int *kTurn[3] = {kTurnRight, kTurnLeft, kInverseDir};
-          for (int k = 0; k < 3; k++) {
-            if (map.IsEmpty(robot[i].position.Move(kTurn[k][robot[i].dir]))) {
-              robot[i].dir = kTurn[k][robot[i].dir];
+          for (auto &k : kTurn) {
+            if (map.IsEmpty(robot[i].position.Move(k[robot[i].dir]))) {
+              robot[i].dir = k[robot[i].dir];
               change = true;
               break;
             }
@@ -411,86 +411,89 @@ bool CheckMoveAndMakeValid() {
   return flag;
 }
 
-
 int ShipFindBerth(int id) {
-    int maxBerth = 0, dir = -1;
-    for (int i = 0; i < kBerthCount; i++) {
-        //if (berth[i].have_ship[current_time+berth[i].transport_time])continue;
-        if (berth[i].have_ship && berth[i].saved_goods <  2* ship[id].capacity)continue;
-        if (berth[i].saved_goods >= ship[id].capacity) {
-            return i;
-        }
-        if (berth[i].saved_goods > maxBerth) {
-            maxBerth = berth[i].saved_goods;
-            dir = i;
-        }
+  int maxBerth = 0, dir = -1;
+  for (int i = 0; i < kBerthCount; i++) {
+    //if (berth[i].have_ship[current_time+berth[i].transport_time])continue;
+    if (berth[i].have_ship && berth[i].saved_goods < 2 * Ship::capacity)continue;
+    if (berth[i].saved_goods >= Ship::capacity) {
+      return i;
     }
-    return dir;
+    if (berth[i].saved_goods > maxBerth) {
+      maxBerth = berth[i].saved_goods;
+      dir = i;
+    }
+  }
+  return dir;
 }
 
 void UpdateShip(int id) {
-    fprintf(stderr, "UpdateShip id: %d status %d  dir %d have %d/%d goods\n", id, ship[id].status,ship[id].dir,ship[id].nowGoods,ship[id].capacity);
-    if (ship[id].status == Ship::kAtEnd) {
+  fprintf(stderr,
+          "UpdateShip id: %d status %d  dir %d have %d/%d goods\n",
+          id,
+          ship[id].status,
+          ship[id].dir,
+          ship[id].nowGoods,
+          Ship::capacity);
+  if (ship[id].status == Ship::kAtEnd) {
+    int dir = ShipFindBerth(id);
+    if (dir != -1) {
+      ship[id].dir = dir;
+      ship[id].PrintShip();
+      ship[id].status = Ship::kGoBack;
+      ship[id].nowGoods = 0;
+      berth[dir].have_ship++;
+      //berth[dir].have_ship[current_time + berth[dir].transport_time] = 1;
+      //fprintf(stderr, "%d\n", current_time + berth[dir].transport_time);
+      fprintf(stderr, "goto %d\n", dir);
+      return;
+    }
+  } else if (ship[id].status == Ship::kAtBerth) {
+
+    fprintf(stderr, "now in %d\n", ship[id].nowBerth);
+    int now = ship[id].nowBerth;
+    if (current_time + berth[now].transport_time + 600 > 15000) {
+      ship[id].PrintGo();
+      berth[now].have_ship--;
+      ship[id].dir = -1;
+      ship[id].status = Ship::kGoTo;
+      fprintf(stderr, "goto -1\n");
+      return;
+    }
+    //berth[now].have_ship ++;
+    if (ship[id].nowGoods < Ship::capacity) {
+      if (berth[now].saved_goods > 0) {
+        int goodsNum = std::min({berth[now].loading_speed, berth[now].saved_goods, Ship::capacity - ship[id].nowGoods});
+        berth[now].saved_goods -= goodsNum;
+        ship[id].nowGoods += goodsNum;
+
+      }
+      //to update
+      if (berth[now].saved_goods == 0 && ship[id].nowGoods < Ship::capacity) {
         int dir = ShipFindBerth(id);
         if (dir != -1) {
-            ship[id].dir = dir;
-            ship[id].PrintShip();
-            ship[id].status = Ship::kGoBack;
-            ship[id].nowGoods = 0;
-            berth[dir].have_ship ++;
-            //berth[dir].have_ship[current_time + berth[dir].transport_time] = 1;
-            //fprintf(stderr, "%d\n", current_time + berth[dir].transport_time);
-            fprintf(stderr, "goto %d\n", dir);
-            return;
+          ship[id].dir = dir;
+          ship[id].PrintShip();
+          berth[now].have_ship--;
+          berth[dir].have_ship++;
+          ship[id].status = Ship::kGoBack;
+          fprintf(stderr, "goto %d\n", dir);
+          return;
         }
+      }
     }
-    else if (ship[id].status == Ship::kAtBerth) {
-        
-        fprintf(stderr, "now in %d\n", ship[id].nowBerth);
-        int now = ship[id].nowBerth;
-        if (current_time + berth[now].transport_time + 600 > 15000) {
-            ship[id].PrintGo();
-            berth[now].have_ship--;
-            ship[id].dir = -1;
-            ship[id].status = Ship::kGoTo;
-            fprintf(stderr, "goto -1\n");
-            return;
-        }
-        //berth[now].have_ship ++;
-        if (ship[id].nowGoods < ship[id].capacity) {
-            if (berth[now].saved_goods > 0) {
-                int goodsNum = std::min({ berth[now].loading_speed, berth[now].saved_goods,ship[id].capacity - ship[id].nowGoods });
-                berth[now].saved_goods -= goodsNum;
-                ship[id].nowGoods += goodsNum;
 
-            }
-            //to update
-            if (berth[now].saved_goods == 0 && ship[id].nowGoods < ship[id].capacity) {
-                int dir = ShipFindBerth(id);
-                if (dir != -1) {
-                    ship[id].dir = dir;
-                    ship[id].PrintShip();
-                    berth[now].have_ship --;
-                    berth[dir].have_ship++;
-                    ship[id].status = Ship::kGoBack;
-                    fprintf(stderr, "goto %d\n", dir);
-                    return;
-                }
-            }
-        }
-
-        if (ship[id].nowGoods == ship[id].capacity) {
-            ship[id].PrintGo();
-            berth[now].have_ship--;
-            ship[id].dir = -1;
-            ship[id].status = Ship::kGoTo;
-            fprintf(stderr, "goto -1\n");
-            return;
-        }
+    if (ship[id].nowGoods == Ship::capacity) {
+      ship[id].PrintGo();
+      berth[now].have_ship--;
+      ship[id].dir = -1;
+      ship[id].status = Ship::kGoTo;
+      fprintf(stderr, "goto -1\n");
+      return;
     }
-    else if (ship[id].status == Ship::kIdle) {
+  } else if (ship[id].status == Ship::kIdle) {
 
-    }
+  }
 }
 
 void UpdateOutput() {
@@ -508,26 +511,25 @@ void UpdateOutput() {
     UpdateRobot(i);
   }
   for (int i = 0; i < kBerthCount; i++) {
-      fprintf(stderr, "Berth id %d  goods %d\n",i,berth[i].saved_goods);
+    fprintf(stderr, "Berth id %d  goods %d\n", i, berth[i].saved_goods);
   }
   if (current_time == 1) {
-      for (int i = 0; i < kShipCount; i++) {
-          berth[i].have_ship++;
-          ship[i].dir = i;
-          ship[i].PrintShip();
-          ship[i].status = Ship::kGoBack;
-          fprintf(stderr, "goto %d\n", i);
-      }
-  }
-  else {
-      for (int i = 0; i < kShipCount; i++) {
-          UpdateShip(i);
-      }
+    for (int i = 0; i < kShipCount; i++) {
+      berth[i].have_ship++;
+      ship[i].dir = i;
+      ship[i].PrintShip();
+      ship[i].status = Ship::kGoBack;
+      fprintf(stderr, "goto %d\n", i);
+    }
+  } else {
+    for (int i = 0; i < kShipCount; i++) {
+      UpdateShip(i);
+    }
   }
 //  while (CheckMoveAndMakeValid()) {}
   for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {}
-  for (int i = 0; i < kRobotCount; i++) {
-    if (robot[i].dir != -1) robot[i].PrintMove();
+  for (auto &i : robot) {
+    if (i.dir != -1) i.PrintMove();
   }
   PrintOK();
 }
@@ -540,7 +542,7 @@ int main() {
   for (int i = 0; i < kGameDuration; i++) {
     if (Input()) {
       //std::cerr << "Input success" << std::endl;
-       
+
       UpdateOutput();
     }
   }
