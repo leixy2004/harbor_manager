@@ -6,7 +6,6 @@
 #define HARBOR_MANAGER__GOODS_H_
 #include "position.h"
 #include "map_object.h"
-#include "list.h"
 #include "constant.h"
 #include <memory>
 struct Goods : MapObject {

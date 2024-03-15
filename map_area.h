@@ -8,7 +8,7 @@
 struct MapArea {
   int id{};
   int left{}, right{}, top{}, bottom{};
-  bool IsInArea(int x, int y) const {
+  [[nodiscard]] bool IsInArea(int x, int y) const {
     return x >= left && x <= right && y >= top && y <= bottom;
   }
 
