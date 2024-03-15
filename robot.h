@@ -34,7 +34,7 @@ struct Robot : MapObject {
   }
   void Refresh() {
     this->status = kIdle;
-    this->dir = -1;
+    this->dir = kStay;
     this->goods_id = -1;
     this->berth_id = -1;
   }

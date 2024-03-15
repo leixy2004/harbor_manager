@@ -6,6 +6,7 @@
 #define HARBOR_MANAGER__CONSTANT_H_
 #include "vector.h"
 #include <array>
+#define RED(x) ("\033[31m" (x) "\033[0m")
 const int kInf = 0x3f3f3f3f;
 const int kN = 200;
 const int kGameDuration = 15000;
