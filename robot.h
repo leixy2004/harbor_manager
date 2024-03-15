@@ -7,9 +7,7 @@
 #include <iostream>
 #include "position.h"
 #include "constant.h"
-#include "queue.h"
 #include "map_object.h"
-#include "route.h"
 struct Robot : MapObject {
   enum RobotStatus {
     kNone,
@@ -20,7 +18,7 @@ struct Robot : MapObject {
     kGoingToUnload,
     kYielding
   };
-  int dir{-1};
+  int dir{kStay};
   int goods_id{};
   int berth_id{};
   void PrintMove() {

@@ -3,7 +3,6 @@
 //
 
 #include "bfs.h"
-#include "goods.h"
 #include "map.h"
 #include <iostream>
 void Bfs(int n, Position *pos_origin, Grid &dis, Grid &pre,const Map &map) {
