@@ -546,9 +546,10 @@ void UpdateShip(int id) {
 			fprintf(stderr, "goto -1\n");
 			return;
 		}
-		else if (ship[id].status == Ship::kIdle) {
+		
+	}
+	else if (ship[id].status == Ship::kIdle) {
 
-		}
 	}
 }
 
