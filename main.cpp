@@ -348,9 +348,9 @@ void UpdateRobot(int id) {
 //      fprintf(stderr, "robot:%d LOAD\n", id);
       goods[robot[id].goods_id].status = Goods::kCaptured;
 //      pool.enqueue(AllocateBerthToRobot, id);
-      pool.enqueue([&]() {
+//      pool.enqueue([&]() {
         goods[robot[id].goods_id].DeallocateMemory();
-      });
+//      });
       AllocateBerthToRobot(id);
       robot[id].dir = kStay;
     } else {
@@ -379,7 +379,7 @@ void UpdateRobot(int id) {
       robot[id].dir = (kInverseDir[dir]);
     }
   }
-  robot[id].Show();
+//  robot[id].Show();
 }
 
 bool CheckMoveAndMakeValid() {
