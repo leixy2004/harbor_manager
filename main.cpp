@@ -526,6 +526,24 @@ void UpdateShip(int id) {
         }
       }
     }
+    else if (ship[id].status == Ship::kAtBerth) {
+        
+        fprintf(stderr, "now in %d\n", ship[id].nowBerth);
+        int now = ship[id].nowBerth;
+        if (current_time + berth[now].transport_time + 600 > 15000) {
+            ship[id].PrintGo();
+            berth[now].have_ship--;
+            ship[id].dir = -1;
+            ship[id].status = Ship::kGoTo;
+            fprintf(stderr, "goto -1\n");
+            return;
+        }
+        //berth[now].have_ship ++;
+        if (ship[id].nowGoods < ship[id].capacity) {
+            if (berth[now].saved_goods > 0) {
+                int goodsNum = std::min(std::min(berth[now].loading_speed, berth[now].saved_goods), ship[id].capacity - ship[id].nowGoods);
+                berth[now].saved_goods -= goodsNum;
+                ship[id].nowGoods += goodsNum;
 
     if (ship[id].nowGoods == Ship::capacity) {
       ship[id].PrintGo();
