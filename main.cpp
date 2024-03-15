@@ -566,6 +566,7 @@ void UpdateShip(int id) {
       }
     }
   }
+}
   void UpdateOutput() {
     while (!goods_waiting.empty()
         && current_time - goods_waiting.front()->occur_time >= kGoodsDuration) {
