@@ -1,12 +1,23 @@
-project(CodeCraftSDK)
-cmake_minimum_required (VERSION 3.8)
-
+cmake_minimum_required(VERSION 3.20)
+project(harbor_manager)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD 11)
-
-if (!WIN32)
-    link_libraries(pthread rt m)
-endif (!WIN32)
-
-AUX_SOURCE_DIRECTORY(. src)
-ADD_EXECUTABLE(main ${src})
+include_directories(.)
+add_executable(harbor_manager
+        robot.h
+        main.cpp
+        vector.cpp
+        vector.h
+        goods.h
+        constant.h
+        berth.h
+        map.h
+        position.h
+        ship.cpp
+        ship.h
+        bfs.cpp
+        bfs.h
+        map_object.h
+        map_area.h
+        thread_pool.h
+        goods.cpp
+)
