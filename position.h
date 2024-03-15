@@ -15,7 +15,7 @@ struct Position : Vector {
   Position() = default;
   Position(int x, int y) : Vector(x, y) {};
   Position(Vector v) : Vector(v) {};
-  bool IsInMap() const {
+  [[nodiscard]] bool IsInMap() const {
     return x >= 0 && x < kN && y >= 0 && y < kN;
   };
   bool operator==(const Position &pos) const {
@@ -27,10 +27,10 @@ struct Position : Vector {
   bool operator<(const Position &pos) const {
     return x == pos.x ? y < pos.y : x < pos.x;
   };
-  Position Move(int dir) const {
+  [[nodiscard]] Position Move(int dir) const {
     return *this + kDirVec[dir];
   };
-  int Distance(const Position &pos) const {
+  [[nodiscard]] int Distance(const Position &pos) const {
     return std::abs(x - pos.x) + std::abs(y - pos.y);
   };
 };
