@@ -19,4 +19,5 @@ add_executable(harbor_manager
         map_object.h
         map_area.h
         thread_pool.h
+        Goods.cpp
 )
