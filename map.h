@@ -9,17 +9,17 @@
 
 struct Map {
   std::array<std::array<char, kN>, kN> grid{};
-  Grid dis{};
-  Grid pre{};
+//  Grid dis{};
+//  Grid pre{};
   Grid berth_id{};
-  void Init() {
-    for (int i = 0; i < kN; i++) {
-      for (int j = 0; j < kN; j++) {
-        dis[i][j] = kInf;
-        pre[i][j] = -1;
-      }
-    }
-  }
+//  void Init() {
+//    for (int i = 0; i < kN; i++) {
+//      for (int j = 0; j < kN; j++) {
+//        dis[i][j] = kInf;
+//        pre[i][j] = -1;
+//      }
+//    }
+//  }
   static bool IsInMap(int x, int y) {
     return x >= 0 && x < kN && y >= 0 && y < kN;
   }

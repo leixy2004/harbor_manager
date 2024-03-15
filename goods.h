@@ -8,6 +8,7 @@
 #include "map_object.h"
 #include "constant.h"
 #include <memory>
+#include <iostream>
 struct Goods : MapObject {
   enum GoodsStatus {
     kNone,
@@ -32,6 +33,9 @@ struct Goods : MapObject {
                                                                        occur_time(occur_time) {}
 
   void AllocateMemory() {
+//    if (this->dis != nullptr || this->pre != nullptr) {
+//      DeallocateMemory();
+//    }
     this->dis = grid_allocator.allocate(1);
     this->pre = grid_allocator.allocate(1);
     grid_allocator.construct(this->dis);
@@ -49,6 +53,30 @@ struct Goods : MapObject {
       this->pre = nullptr;
     }
   }
+//  void Update(int status) {
+//    if (status == kNone) {
+//      this->status = status;
+//    } else if (status == kWaiting) {
+//      if (this->dis == nullptr || this->pre == nullptr) {
+//        std::cerr<<"Goods Error: dis or pre is nullptr"<<std::endl;
+//        Update(kNone);
+//      } else {
+//        this->status = status;
+//      }
+//    } else if (status == kTargeted) {
+//      if (this->dis == nullptr || this->pre == nullptr) {
+//        Update(kNone);
+//      } else {
+//        this->status = status;
+//      }
+//    } else if (status == kCaptured) {
+//      DeallocateMemory();
+//      this->status = status;
+//    } else if (status == kExpired) {
+//      DeallocateMemory();
+//        this->status = status;
+//    }
+//  }
 };
 
 //std::allocator<Grid> Goods::grid_allocator{};
