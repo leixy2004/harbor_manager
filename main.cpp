@@ -572,7 +572,7 @@ void UpdateOutput() {
   goods_waiting.remove_if([](Goods *g) {
     if (g->status == Goods::kTargeted) {
       return true;
-    } else    if (g->status == Goods::kCaptured) {
+    } else if (g->status == Goods::kCaptured) {
       g->DeallocateMemory();
       return true;
     } else {
