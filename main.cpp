@@ -298,14 +298,25 @@ namespace update_robot_goods {
 
 double GetGoodsValue(int id, int x, int y) {
 //  fprintf(stderr, "GetGoodsValue id: %d x: %d y: %d\n", id, x, y);
+//  static double limit = 0.1;
+//    if (current_time - goods[id].occur_time +(*goods[id].dis)[x][y]>= kGoodsDuration) {
+//        return -1;
+//    }
   auto time_cost = (
       (*goods[id].dis)[x][y] * 1.0
           + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y]
-          + 5
+          + 6
   );
   auto passed_time = (current_time - goods[id].occur_time + 2.0);
+  auto res=std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
+//  if (goods[id].value * 1.0 / time_cost < limit) {
+//    res*=0.8;
+//  }
+//  if ((kGoodsDuration-passed_time)/(*goods[id].dis)[x][y]<1.1){
+//    res*=1.1;
+//  }
 //  fprintf(stderr, "time_cost: %lf value:%d\n", time_cost, goods[id].value);
-  return std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
+  return res;
 }
 
 int RobotFindGoods(int x, int y) {
@@ -371,7 +382,6 @@ void ArrangeAllRobotAndGoods() {
       }
     }
   } while (flag);
-
 }
 
 }
@@ -627,7 +637,7 @@ void UpdateShip(int id) {
           berth[now].have_ship--;
           ship[id].dir = -1;
           ship[id].status = Ship::kGoTo;
-          fprintf(stderr, "goto -1\n");
+//          fprintf(stderr, "goto -1\n");
           return;
         }
         int dir = ShipFindBerth(id);
@@ -637,7 +647,7 @@ void UpdateShip(int id) {
             berth[now].have_ship--;
             ship[id].dir = -1;
             ship[id].status = Ship::kGoTo;
-            fprintf(stderr, "goto -1\n");
+//            fprintf(stderr, "goto -1\n");
             return;
           }
           ship[id].dir = dir;
@@ -656,7 +666,7 @@ void UpdateShip(int id) {
       berth[now].have_ship--;
       ship[id].dir = -1;
       ship[id].status = Ship::kGoTo;
-      fprintf(stderr, "goto -1\n");
+//      fprintf(stderr, "goto -1\n");
       return;
     }
     if (ship[id].nowGoods == ship[id].capacity) {
@@ -715,7 +725,7 @@ void UpdateOutput() {
     UpdateRobotMoveDir(i);
   }
   for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {
-    fprintf(stderr, RED("CheckMoveAndMakeValid\n"));
+//    fprintf(stderr, RED("CheckMoveAndMakeValid\n"));
   }
   for (auto &i : robot) {
     if (i.dir != kStay) i.PrintMove();
@@ -748,7 +758,7 @@ int main() {
 //        std::this_thread::sleep_for(std::chrono::milliseconds(14 - duration.count()));
 //      std::cerr << "UpdateOutput time: " << duration.count() << "ms" << std::endl;
 //      }
-    ShowAll();
+//    ShowAll();
     PrintOK();
   }
 //  }
