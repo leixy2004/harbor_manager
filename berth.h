@@ -12,6 +12,7 @@ struct Berth : MapArea {
   int transport_time{};
   int loading_speed{};
   int saved_goods{};
+  int targeting_robot{};
   Grid dis{};
     Grid pre{};
   //bool have_ship[20005]{ 0 };

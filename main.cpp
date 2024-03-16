@@ -1,10 +1,12 @@
 #include <iostream>
 //#include <cstdio>
 #include <algorithm>
-//#include <fstream>
+#include <fstream>
 #include <array>
+#include <cmath>
 //#include <list>
 #include <chrono>
+//#include <format>
 #include "robot.h"
 #include "constant.h"
 #include "map.h"
@@ -44,22 +46,34 @@ int goods_on_ship = 0;
 int goods_on_ship_value = 0;
 int goods_on_berth = 0;
 int goods_on_berth_value = 0;
-
+auto f = fopen("statistics.txt", "w");
 void ShowAll() {
+  fprintf(f, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+          goods_waiting,
+          goods_waiting_value,
+          goods_on_robot,
+          goods_on_robot_value,
+          goods_on_ship,
+          goods_on_ship_value,
+          goods_on_berth,
+          goods_on_berth_value,
+          goods_expired,
+          goods_expired_value
+  );
   fprintf(stderr, "Goods: W %d:%d (%.1lf) -> R %d:%d (%.1lf) -> B %d:%d (%.1lf)\n",
           goods_waiting, goods_waiting_value, goods_waiting_value * 1.0 / goods_waiting,
           goods_on_robot, goods_on_robot_value, goods_on_robot_value * 1.0 / goods_on_robot,
           goods_on_berth, goods_on_berth_value, goods_on_berth_value * 1.0 / goods_on_berth);
-  fprintf(stderr,
-          "Expired: %d:%d(%.1lf)   ",
-          goods_expired,
-          goods_expired_value,
-          goods_expired_value * 1.0 / goods_expired);
-  fprintf(stderr,"All %d:%d(%.1lf)\n",
+//  fprintf(stderr,
+//          "Expired: %d:%d(%.1lf)   ",
+//          goods_expired,
+//          goods_expired_value,
+//          goods_expired_value * 1.0 / goods_expired);
+  fprintf(stderr, "All %d:%d(%.1lf)\n",
           goods_waiting + goods_on_robot + goods_on_berth + goods_expired,
           goods_waiting_value + goods_on_robot_value + goods_on_berth_value + goods_expired_value,
           (goods_waiting_value + goods_on_robot_value + goods_on_berth_value + goods_expired_value) * 1.0 /
-          (goods_waiting + goods_on_robot + goods_on_berth + goods_expired));
+              (goods_waiting + goods_on_robot + goods_on_berth + goods_expired));
 }
 //long long TimeRecord() {
 //  static std::chrono::high_resolution_clock::time_point last_time{};
@@ -242,14 +256,13 @@ namespace update_robot_goods {
 double GetGoodsValue(int id, int x, int y) {
 //  fprintf(stderr, "GetGoodsValue id: %d x: %d y: %d\n", id, x, y);
   auto time_cost = (
-      (*goods[id].dis)[x][y]*0.1
+      (*goods[id].dis)[x][y] * 1.0
           + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y]
           + 5
   );
-  return goods[id].value*1.0/(time_cost);
-//  return (goods[id].value * 1.0
-//      / time_cost)
-//      + 1.0 / (current_time - goods[id].occur_time + 5); // rest time
+  auto passed_time = (current_time - goods[id].occur_time + 2.0);
+//  fprintf(stderr, "time_cost: %lf value:%d\n", time_cost, goods[id].value);
+  return std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
 }
 
 int RobotFindGoods(int x, int y) {
@@ -328,7 +341,10 @@ double GetBerthValue(int id, int x, int y) {
       / (berth[id].dis[x][y] + 5)
       / (berth[id].saved_goods + 5)
       / (berth[id].transport_time + 5);*/
-    return 1.0 / (berth[id].dis[x][y] + 5);
+  if (current_time + 100 > 14000) {
+    return 1.0 / (berth[id].dis[x][y] + 5) * (1.0 * berth[id].saved_goods / Ship::capacity);
+  }
+  return 1.0 / (berth[id].dis[x][y] + 5) * (1 - 1.0 * berth[id].saved_goods / Ship::capacity);
 }
 
 int RobotFindBerth(int x, int y) {
@@ -356,9 +372,17 @@ void AllocateBerthToRobot(int id) {
 
 }
 
+void ArrangeAllRobotAndBerth() {
+  for (int i = 0; i < kRobotCount; i++) {
+    if (robot[i].status == Robot::kGoingToUnload) {
+      AllocateBerthToRobot(i);
+    }
+  }
 }
 
-void UpdateRobot(int id) {
+}
+
+void RobotLoadAndUnload(int id) {
   using namespace update_robot_goods;
   using namespace update_robot_berth;
   int &x = robot[id].position.x;
@@ -367,36 +391,28 @@ void UpdateRobot(int id) {
     if (robot[id].goods_id == -1) {
       return;
     }
-    int dir = (*goods[robot[id].goods_id].pre)[x][y];
-    if (dir == kStay) { // load
+    if ((*goods[robot[id].goods_id].pre)[x][y] == kStay) { // load
       if (robot[id].position != goods[robot[id].goods_id].position
           || goods[robot[id].goods_id].status != Goods::kTargeted) {
-        fprintf(stderr, "Robot find no goods there,\n");
+        fprintf(stderr, RED("Robot find no goods there,\n"));
         robot[id].Refresh();
       }
       robot[id].PrintLoad();
+      robot[id].status = Robot::kGoingToUnload;
       goods[robot[id].goods_id].status = Goods::kCaptured;
       goods_waiting--;
       goods_waiting_value -= goods[robot[id].goods_id].value;
       goods_on_robot++;
       goods_on_robot_value += goods[robot[id].goods_id].value;
-//      goods[robot[id].goods_id].DeallocateMemory();
-      AllocateBerthToRobot(id);
-      robot[id].dir = kStay;
-    } else {
-      robot[id].dir = (kInverseDir[dir]);
     }
   } else if (robot[id].status == Robot::kGoingToUnload) {
     if (robot[id].berth_id == -1) {
       fprintf(stderr, "robot:%d berth_id == -1\n", id);
-      AllocateBerthToRobot(id);
       return;
     }
-    int dir = berth[robot[id].berth_id].pre[x][y];
-    if (dir == kStay) {
+    if (berth[robot[id].berth_id].pre[x][y] == kStay) {
       if (!berth[robot[id].berth_id].IsInArea(x, y)) {
-        fprintf(stderr, "Robot %d (%d, %d) find no berth (id:%d) there.\n", id, x, y, robot[id].berth_id);
-        AllocateBerthToRobot(id);
+        fprintf(stderr, RED("Robot %d (%d, %d) find no berth (id:%d) there.\n"), id, x, y, robot[id].berth_id);
         return;
       }
       robot[id].PrintUnload();
@@ -406,7 +422,32 @@ void UpdateRobot(int id) {
       goods_on_berth++;
       goods_on_berth_value += goods[robot[id].goods_id].value;
       robot[id].Refresh();
-    } else {
+    }
+  }
+}
+
+void UpdateRobotMoveDir(int id) {
+  using namespace update_robot_goods;
+  using namespace update_robot_berth;
+  int &x = robot[id].position.x;
+  int &y = robot[id].position.y;
+  robot[id].dir = kStay;
+  if (robot[id].status == Robot::kGoingToLoad) {
+    if (robot[id].goods_id == -1) {
+      return;
+    }
+    int dir = (*goods[robot[id].goods_id].pre)[x][y];
+    if (dir != kStay) {
+      robot[id].dir = (kInverseDir[dir]);
+    }
+  } else if (robot[id].status == Robot::kGoingToUnload) {
+    if (robot[id].berth_id == -1) {
+      fprintf(stderr, "robot:%d berth_id == -1\n", id);
+      AllocateBerthToRobot(id);
+      return;
+    }
+    int dir = berth[robot[id].berth_id].pre[x][y];
+    if (dir != kStay) {
       robot[id].dir = (kInverseDir[dir]);
     }
   }
@@ -528,30 +569,30 @@ void UpdateShip(int id) {
             std::min(std::min(berth[now].loading_speed, berth[now].saved_goods), ship[id].capacity - ship[id].nowGoods);
         berth[now].saved_goods -= goodsNum;
         ship[id].nowGoods += goodsNum;
-
       }
-      
-      
+
+
       //to update
       if (berth[now].saved_goods == 0 && ship[id].nowGoods < ship[id].capacity) {
-          if (ship[id].nowGoods > ship[id].capacity * 9 / 10 && current_time + 2*berth[now].transport_time + 510 < 15000) {
-              ship[id].PrintGo();
-              berth[now].have_ship--;
-              ship[id].dir = -1;
-              ship[id].status = Ship::kGoTo;
-              fprintf(stderr, "goto -1\n");
-              return;
+        if (ship[id].nowGoods > ship[id].capacity * 9 / 10
+            && current_time + 2 * berth[now].transport_time + 510 < 15000) {
+          ship[id].PrintGo();
+          berth[now].have_ship--;
+          ship[id].dir = -1;
+          ship[id].status = Ship::kGoTo;
+          fprintf(stderr, "goto -1\n");
+          return;
         }
         int dir = ShipFindBerth(id);
         if (dir != -1) {
-            if (current_time + berth[dir].transport_time + 510 > 15000) {
-                ship[id].PrintGo();
-                berth[now].have_ship--;
-                ship[id].dir = -1;
-                ship[id].status = Ship::kGoTo;
-                fprintf(stderr, "goto -1\n");
-                return;
-            }
+          if (current_time + berth[dir].transport_time + 510 > 15000) {
+            ship[id].PrintGo();
+            berth[now].have_ship--;
+            ship[id].dir = -1;
+            ship[id].status = Ship::kGoTo;
+            fprintf(stderr, "goto -1\n");
+            return;
+          }
           ship[id].dir = dir;
           ship[id].PrintShip();
           berth[now].have_ship--;
@@ -564,12 +605,12 @@ void UpdateShip(int id) {
 
     }
     if (current_time + berth[now].transport_time + 10 > 15000) {
-        ship[id].PrintGo();
-        berth[now].have_ship--;
-        ship[id].dir = -1;
-        ship[id].status = Ship::kGoTo;
-        fprintf(stderr, "goto -1\n");
-        return;
+      ship[id].PrintGo();
+      berth[now].have_ship--;
+      ship[id].dir = -1;
+      ship[id].status = Ship::kGoTo;
+      fprintf(stderr, "goto -1\n");
+      return;
     }
     if (ship[id].nowGoods == ship[id].capacity) {
       ship[id].PrintGo();
@@ -618,12 +659,17 @@ void RemoveExpiredGoods() {
 
 void UpdateOutput() {
   RemoveExpiredGoods();
-  update_robot_goods::ArrangeAllRobotAndGoods();
-
   for (int i = 0; i < kRobotCount; i++) {
-    UpdateRobot(i);
+    RobotLoadAndUnload(i);
   }
-  for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {}
+  update_robot_goods::ArrangeAllRobotAndGoods();
+  update_robot_berth::ArrangeAllRobotAndBerth();
+  for (int i = 0; i < kRobotCount; i++) {
+    UpdateRobotMoveDir(i);
+  }
+  for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {
+    fprintf(stderr, RED("CheckMoveAndMakeValid\n"));
+  }
   for (auto &i : robot) {
     if (i.dir != kStay) i.PrintMove();
   }
