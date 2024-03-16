@@ -333,7 +333,7 @@ double GetGoodsValue(int id, int x, int y) {
 //        return -1;
 //    }
   auto time_cost =
-      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 6);
+      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 5);
   auto passed_time = (current_time - goods[id].occur_time + 2.0);
   auto res = std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
 //  if (goods[id].value * 1.0 / time_cost < limit) {
@@ -627,13 +627,13 @@ int ShipFindBerth(int id) {
 }
 
 void UpdateShip(int id) {
-  fprintf(stderr,
+  /*fprintf(stderr,
           "UpdateShip id: %d status %d  dir %d have %d/%d goods\n",
           id,
           ship[id].status,
           ship[id].dir,
           ship[id].nowGoods,
-          ship[id].capacity);
+          ship[id].capacity);*/
   if (ship[id].status == Ship::kAtEnd) {
     int dir = ShipFindBerth(id);
     if (dir != -1) {
