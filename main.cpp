@@ -436,13 +436,7 @@ int ShipFindBerth(int id) {
 }
 
 void UpdateShip(int id) {
-//  fprintf(stderr,
-//          "UpdateShip id: %d status %d  dir %d have %d/%d goods\n",
-//          id,
-//          ship[id].status,
-//          ship[id].dir,
-//          ship[id].nowGoods,
-//          Ship::capacity);
+  fprintf(stderr, "UpdateShip id: %d status %d  dir %d have %d/%d goods\n", id, ship[id].status, ship[id].dir, ship[id].nowGoods, ship[id].capacity);
   if (ship[id].status == Ship::kAtEnd) {
     int dir = ShipFindBerth(id);
     if (dir != -1) {
@@ -453,34 +447,32 @@ void UpdateShip(int id) {
       berth[dir].have_ship++;
       //berth[dir].have_ship[current_time + berth[dir].transport_time] = 1;
       //fprintf(stderr, "%d\n", current_time + berth[dir].transport_time);
-//      fprintf(stderr, "goto %d\n", dir);
+      fprintf(stderr, "goto %d\n", dir);
       return;
     }
-  } else if (ship[id].status == Ship::kAtBerth) {
-//    fprintf(stderr, "now in %d\n", ship[id].nowBerth);
+  }
+  else if (ship[id].status == Ship::kAtBerth) {
+
+    fprintf(stderr, "now in %d\n", ship[id].nowBerth);
     int now = ship[id].nowBerth;
-    if (current_time + berth[now].transport_time + 600 > kGameDuration) {
+    if (current_time + berth[now].transport_time + 600 > 15000) {
       ship[id].PrintGo();
       berth[now].have_ship--;
       ship[id].dir = -1;
       ship[id].status = Ship::kGoTo;
-//      fprintf(stderr, "goto -1\n");
+      fprintf(stderr, "goto -1\n");
       return;
     }
     //berth[now].have_ship ++;
-    if (ship[id].nowGoods < Ship::capacity) {
+    if (ship[id].nowGoods < ship[id].capacity) {
       if (berth[now].saved_goods > 0) {
-        int goodsNum = std::min({
-                                    berth[now].loading_speed,
-                                    berth[now].saved_goods,
-                                    Ship::capacity - ship[id].nowGoods
-                                });
+        int goodsNum = std::min(std::min(berth[now].loading_speed, berth[now].saved_goods), ship[id].capacity - ship[id].nowGoods);
         berth[now].saved_goods -= goodsNum;
         ship[id].nowGoods += goodsNum;
 
       }
       //to update
-      if (berth[now].saved_goods == 0 && ship[id].nowGoods < Ship::capacity) {
+      if (berth[now].saved_goods == 0 && ship[id].nowGoods < ship[id].capacity) {
         int dir = ShipFindBerth(id);
         if (dir != -1) {
           ship[id].dir = dir;
@@ -488,49 +480,24 @@ void UpdateShip(int id) {
           berth[now].have_ship--;
           berth[dir].have_ship++;
           ship[id].status = Ship::kGoBack;
-//          fprintf(stderr, "goto %d\n", dir);
+          fprintf(stderr, "goto %d\n", dir);
           return;
         }
       }
     }
-  } else if (ship[id].status == Ship::kAtBerth) {
 
-    fprintf(stderr, "now in %d\n", ship[id].nowBerth);
-    int now = ship[id].nowBerth;
-    if (current_time + berth[now].transport_time + 600 > 15000) {
-      ship[id].
-          PrintGo();
+    if (ship[id].nowGoods == ship[id].capacity) {
+      ship[id].PrintGo();
       berth[now].have_ship--;
-      ship[id].
-          dir = -1;
-      ship[id].
-          status = Ship::kGoTo;
+      ship[id].dir = -1;
+      ship[id].status = Ship::kGoTo;
       fprintf(stderr, "goto -1\n");
       return;
     }
-//berth[now].have_ship ++;
-    if (ship[id].nowGoods < ship[id].capacity) {
-      if (berth[now].saved_goods > 0) {
-        int goodsNum = std::min(std::min(berth[now].loading_speed, berth[now].saved_goods),
-                                ship[id].capacity - ship[id].nowGoods);
-        berth[now].saved_goods -= goodsNum;
-        ship[id].nowGoods += goodsNum;
 
-        if (ship[id].nowGoods == Ship::capacity) {
-          ship[id].
-              PrintGo();
-          berth[now].have_ship--;
-          ship[id].
-              dir = -1;
-          ship[id].
-              status = Ship::kGoTo;
-//      fprintf(stderr, "goto -1\n");
-          return;
-        }
-      } else if (ship[id].status == Ship::kIdle) {
+  }
+  else if (ship[id].status == Ship::kIdle) {
 
-      }
-    }
   }
 }
 
@@ -572,7 +539,7 @@ void UpdateOutput() {
   goods_waiting.remove_if([](Goods *g) {
     if (g->status == Goods::kTargeted) {
       return true;
-    } else    if (g->status == Goods::kCaptured) {
+    } else if (g->status == Goods::kCaptured) {
       g->DeallocateMemory();
       return true;
     } else {
