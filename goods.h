@@ -23,6 +23,7 @@ struct Goods : MapObject {
   int value{};
   int occur_time{};
   int robot_id{};
+  int berth_id{};
   Grid *dis{};
   Grid *pre{};
   static std::allocator<Grid> grid_allocator;
@@ -31,7 +32,9 @@ struct Goods : MapObject {
   Goods(int x, int y, int id, int status, int value, int occur_time) : MapObject(x, y, id, status),
                                                                        value(value),
                                                                        occur_time(occur_time) {}
-
+  ~Goods() {
+    DeallocateMemory();
+  }
   void AllocateMemory() {
 //    if (this->dis != nullptr || this->pre != nullptr) {
 //      DeallocateMemory();

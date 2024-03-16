@@ -9,8 +9,8 @@
 
 struct Map {
   std::array<std::array<char, kN>, kN> grid{};
-//  Grid dis{};
-//  Grid pre{};
+  Grid dis{};
+  Grid pre{};
   Grid berth_id{};
 //  void Init() {
 //    for (int i = 0; i < kN; i++) {

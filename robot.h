@@ -11,7 +11,7 @@
 struct Robot : MapObject {
   enum RobotStatus {
 //    kNone,
-    kIdle,
+//    kIdle,
     kBreakdown,
     kBreakdownWithGoods,
     kGoingToLoad,
@@ -31,7 +31,7 @@ struct Robot : MapObject {
     std::cout << "pull " << this->id << std::endl;
   }
   void Refresh() {
-    this->status = kIdle;
+    this->status = kGoingToLoad;
     this->dir = kStay;
     this->goods_id = -1;
     this->berth_id = -1;
