@@ -5,7 +5,7 @@
 #include "bfs.h"
 #include "map.h"
 #include <iostream>
-void Bfs(int n, Position *pos_origin, Grid &dis, Grid &pre,const Map &map) {
+void Bfs(int n, Position *pos_origin, Grid &dis, Grid &pre, const Map &map) {
   static Position pos_queue[kN * kN];
   static std::mutex mutex;
   int head;
@@ -32,7 +32,7 @@ void Bfs(int n, Position *pos_origin, Grid &dis, Grid &pre,const Map &map) {
       Position new_pos = pos.Move(dir);
       int &nx = new_pos.x;
       int &ny = new_pos.y;
-      if (map.IsEmpty(nx,ny) && dis[nx][ny] == kInf) {
+      if (map.IsEmpty(nx, ny) && dis[nx][ny] == kInf) {
         dis[nx][ny] = dis[pos.x][pos.y] + 1;
         pre[nx][ny] = dir;
         pos_queue[tail++] = new_pos;
