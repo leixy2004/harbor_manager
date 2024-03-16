@@ -46,34 +46,40 @@ int goods_on_ship = 0;
 int goods_on_ship_value = 0;
 int goods_on_berth = 0;
 int goods_on_berth_value = 0;
-auto f = fopen("statistics.txt", "w");
+int time_cost = 0;
 void ShowAll() {
-  fprintf(f, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-          goods_waiting,
-          goods_waiting_value,
-          goods_on_robot,
-          goods_on_robot_value,
-          goods_on_ship,
-          goods_on_ship_value,
-          goods_on_berth,
-          goods_on_berth_value,
-          goods_expired,
-          goods_expired_value
-  );
+//  fprintf(f, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+//          goods_waiting,
+//          goods_waiting_value,
+//          goods_on_robot,
+//          goods_on_robot_value,
+//          goods_on_ship,
+//          goods_on_ship_value,
+//          goods_on_berth,
+//          goods_on_berth_value,
+//          goods_expired,
+//          goods_expired_value
+//  );
   fprintf(stderr, "Goods: W %d:%d (%.1lf) -> R %d:%d (%.1lf) -> B %d:%d (%.1lf)\n",
           goods_waiting, goods_waiting_value, goods_waiting_value * 1.0 / goods_waiting,
           goods_on_robot, goods_on_robot_value, goods_on_robot_value * 1.0 / goods_on_robot,
           goods_on_berth, goods_on_berth_value, goods_on_berth_value * 1.0 / goods_on_berth);
-//  fprintf(stderr,
-//          "Expired: %d:%d(%.1lf)   ",
-//          goods_expired,
-//          goods_expired_value,
-//          goods_expired_value * 1.0 / goods_expired);
+  fprintf(stderr,
+          "Expired: %d:%d(%.1lf)   ",
+          goods_expired,
+          goods_expired_value,
+          goods_expired_value * 1.0 / goods_expired);
   fprintf(stderr, "All %d:%d(%.1lf)\n",
           goods_waiting + goods_on_robot + goods_on_berth + goods_expired,
           goods_waiting_value + goods_on_robot_value + goods_on_berth_value + goods_expired_value,
           (goods_waiting_value + goods_on_robot_value + goods_on_berth_value + goods_expired_value) * 1.0 /
               (goods_waiting + goods_on_robot + goods_on_berth + goods_expired));
+
+  fprintf(stderr,"Berth: ");
+    for (int i = 0; i < kBerthCount; i++) {
+        fprintf(stderr, "%d:%d ", i, berth[i].saved_goods);
+    }
+    fprintf(stderr, "\n");
 }
 //long long TimeRecord() {
 //  static std::chrono::high_resolution_clock::time_point last_time{};
@@ -137,6 +143,43 @@ void InitAllBerth() {
       }
     }
   }
+  auto f = fopen("statistics.txt", "w");
+
+  for (int x = 0; x < kN; x++) {
+    for (int y = 0; y < kN; y++) {
+      if (map.berth_id[x][y] == -1) {
+        fprintf(f, " ");
+      } else {
+        fprintf(f, "%d", map.berth_id[x][y]);
+      }
+    }
+    fprintf(f, "\n");
+  }
+  fprintf(f, "\n");
+  for (int x = 0; x < kN; x++) {
+    for (int y = 0; y < kN; y++) {
+      if (map.dis[x][y] == kInf) {
+        fprintf(f, "    ");
+      } else {
+        fprintf(f, "%3d ", map.dis[x][y]);
+      }
+    }
+    fprintf(f, "\n");
+  }
+  fprintf(f, "\n");
+  for (int x = 0; x < kN; x++) {
+    for (int y = 0; y < kN; y++) {
+      if (map.pre[x][y] == kStay) {
+        fprintf(f, " ");
+      } else {
+        static const char *kDirChar = "><AV";
+        fprintf(f, "%c", kDirChar[kInverseDir[map.pre[x][y]]]);
+      }
+    }
+    fprintf(f, "\n");
+  }
+  fprintf(f, "\n");
+  fclose(f);
 
 }
 
@@ -341,8 +384,11 @@ double GetBerthValue(int id, int x, int y) {
       / (berth[id].dis[x][y] + 5)
       / (berth[id].saved_goods + 5)
       / (berth[id].transport_time + 5);*/
-  if (current_time + 100 > 14000) {
-    return 1.0 / (berth[id].dis[x][y] + 5) * (1.0 * berth[id].saved_goods / Ship::capacity);
+  if (current_time+berth[id].transport_time+5>15000){
+    return -1;
+  }
+  if (current_time > 12000) {
+    return 1.0 / (berth[id].dis[x][y] + 5) * (1.0 * berth[id].saved_goods / Ship::capacity) / (berth[id].transport_time + 5);
   }
   return 1.0 / (berth[id].dis[x][y] + 5) * (1 - 1.0 * berth[id].saved_goods / Ship::capacity);
 }
@@ -363,8 +409,9 @@ int RobotFindBerth(int x, int y) {
 
 void AllocateBerthToRobot(int id) {
   int berth_id = RobotFindBerth(robot[id].position.x, robot[id].position.y);
+//  int berth_id = id;
   if (berth_id == -1) {
-    fprintf(stderr, "Robot %d find no berth available.\n", id);
+//    fprintf(stderr, "Robot %d find no berth available.\n", id);
     return;
   }
   robot[id].status = Robot::kGoingToUnload;
@@ -407,7 +454,7 @@ void RobotLoadAndUnload(int id) {
     }
   } else if (robot[id].status == Robot::kGoingToUnload) {
     if (robot[id].berth_id == -1) {
-      fprintf(stderr, "robot:%d berth_id == -1\n", id);
+//      fprintf(stderr, "robot:%d berth_id == -1\n", id);
       return;
     }
     if (berth[robot[id].berth_id].pre[x][y] == kStay) {
@@ -442,8 +489,8 @@ void UpdateRobotMoveDir(int id) {
     }
   } else if (robot[id].status == Robot::kGoingToUnload) {
     if (robot[id].berth_id == -1) {
-      fprintf(stderr, "robot:%d berth_id == -1\n", id);
-      AllocateBerthToRobot(id);
+//      fprintf(stderr, "robot:%d berth_id == -1\n", id);
+//      AllocateBerthToRobot(id);
       return;
     }
     int dir = berth[robot[id].berth_id].pre[x][y];
