@@ -324,10 +324,11 @@ namespace update_robot_berth {
 
 double GetBerthValue(int id, int x, int y) {
 //  fprintf(stderr, "GetBerthValue id: %d x: %d y: %d\n", id, x, y);
-  return 1.0 * (berth[id].loading_speed)
-      / (berth[id].dis[x][y] + 5);
-//      / (berth[id].saved_goods + 5)
-//      / (berth[id].transport_time + 5);
+  /*return 1.0 * (berth[id].loading_speed)
+      / (berth[id].dis[x][y] + 5)
+      / (berth[id].saved_goods + 5)
+      / (berth[id].transport_time + 5);*/
+    return 1.0 / (berth[id].dis[x][y] + 5);
 }
 
 int RobotFindBerth(int x, int y) {
@@ -520,14 +521,6 @@ void UpdateShip(int id) {
 
 //    fprintf(stderr, "now in %d\n", ship[id].nowBerth);
     int now = ship[id].nowBerth;
-    if (current_time + berth[now].transport_time + 600 > 15000) {
-      ship[id].PrintGo();
-      berth[now].have_ship--;
-      ship[id].dir = -1;
-      ship[id].status = Ship::kGoTo;
-//      fprintf(stderr, "goto -1\n");
-      return;
-    }
     //berth[now].have_ship ++;
     if (ship[id].nowGoods < ship[id].capacity) {
       if (berth[now].saved_goods > 0) {
@@ -537,10 +530,28 @@ void UpdateShip(int id) {
         ship[id].nowGoods += goodsNum;
 
       }
+      
+      
       //to update
       if (berth[now].saved_goods == 0 && ship[id].nowGoods < ship[id].capacity) {
+          if (ship[id].nowGoods > ship[id].capacity * 9 / 10 && current_time + 2*berth[now].transport_time + 510 < 15000) {
+              ship[id].PrintGo();
+              berth[now].have_ship--;
+              ship[id].dir = -1;
+              ship[id].status = Ship::kGoTo;
+              fprintf(stderr, "goto -1\n");
+              return;
+        }
         int dir = ShipFindBerth(id);
         if (dir != -1) {
+            if (current_time + berth[dir].transport_time + 510 > 15000) {
+                ship[id].PrintGo();
+                berth[now].have_ship--;
+                ship[id].dir = -1;
+                ship[id].status = Ship::kGoTo;
+                fprintf(stderr, "goto -1\n");
+                return;
+            }
           ship[id].dir = dir;
           ship[id].PrintShip();
           berth[now].have_ship--;
@@ -550,8 +561,16 @@ void UpdateShip(int id) {
           return;
         }
       }
-    }
 
+    }
+    if (current_time + berth[now].transport_time + 10 > 15000) {
+        ship[id].PrintGo();
+        berth[now].have_ship--;
+        ship[id].dir = -1;
+        ship[id].status = Ship::kGoTo;
+        fprintf(stderr, "goto -1\n");
+        return;
+    }
     if (ship[id].nowGoods == ship[id].capacity) {
       ship[id].PrintGo();
       berth[now].have_ship--;
@@ -608,13 +627,14 @@ void UpdateOutput() {
   for (auto &i : robot) {
     if (i.dir != kStay) i.PrintMove();
   }
+
   if (current_time == 1) {
     for (int i = 0; i < kShipCount; i++) {
       berth[i].have_ship++;
       ship[i].dir = i;
       ship[i].PrintShip();
       ship[i].status = Ship::kGoBack;
-//      fprintf(stderr, "goto %d\n", i);
+      //fprintf(stderr, "goto %d\n", i);
     }
   } else {
     for (int i = 0; i < kShipCount; i++) {
