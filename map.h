@@ -12,6 +12,7 @@ struct Map {
   Grid dis{};
   Grid pre{};
   Grid berth_id{};
+  Grid color{};
 //  void Init() {
 //    for (int i = 0; i < kN; i++) {
 //      for (int j = 0; j < kN; j++) {
