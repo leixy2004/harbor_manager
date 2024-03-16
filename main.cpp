@@ -34,6 +34,33 @@ bool ReadOK() {
   return str == "OK";
 }
 
+int goods_expired = 0;
+int goods_expired_value = 0;
+int goods_waiting = 0;
+int goods_waiting_value = 0;
+int goods_on_robot = 0;
+int goods_on_robot_value = 0;
+int goods_on_ship = 0;
+int goods_on_ship_value = 0;
+int goods_on_berth = 0;
+int goods_on_berth_value = 0;
+
+void ShowAll() {
+  fprintf(stderr, "Goods: W %d:%d (%.1lf) -> R %d:%d (%.1lf) -> B %d:%d (%.1lf)\n",
+          goods_waiting, goods_waiting_value, goods_waiting_value * 1.0 / goods_waiting,
+          goods_on_robot, goods_on_robot_value, goods_on_robot_value * 1.0 / goods_on_robot,
+          goods_on_berth, goods_on_berth_value, goods_on_berth_value * 1.0 / goods_on_berth);
+  fprintf(stderr,
+          "Expired: %d:%d(%.1lf)   ",
+          goods_expired,
+          goods_expired_value,
+          goods_expired_value * 1.0 / goods_expired);
+  fprintf(stderr,"All %d:%d(%.1lf)\n",
+          goods_waiting + goods_on_robot + goods_on_berth + goods_expired,
+          goods_waiting_value + goods_on_robot_value + goods_on_berth_value + goods_expired_value,
+          (goods_waiting_value + goods_on_robot_value + goods_on_berth_value + goods_expired_value) * 1.0 /
+          (goods_waiting + goods_on_robot + goods_on_berth + goods_expired));
+}
 //long long TimeRecord() {
 //  static std::chrono::high_resolution_clock::time_point last_time{};
 //  auto t = std::chrono::high_resolution_clock::now();
@@ -146,6 +173,8 @@ void AddGoods() {
     g.AllocateMemory();
     Bfs(1, &g.position, *g.dis, *g.pre, map);
     g.status = Goods::kWaiting;
+    goods_waiting++;
+    goods_waiting_value += g.value;
 //    goods_waiting.push_back(ptr);
 
   }(goods[goods_added]);
@@ -213,13 +242,14 @@ namespace update_robot_goods {
 double GetGoodsValue(int id, int x, int y) {
 //  fprintf(stderr, "GetGoodsValue id: %d x: %d y: %d\n", id, x, y);
   auto time_cost = (
-      (*goods[id].dis)[x][y]
+      (*goods[id].dis)[x][y]*0.1
           + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y]
           + 5
   );
-  return (goods[id].value * 1.0
-      / time_cost)
-      + 1.0 / (current_time - goods[id].occur_time + 5); // rest time
+  return goods[id].value*1.0/(time_cost);
+//  return (goods[id].value * 1.0
+//      / time_cost)
+//      + 1.0 / (current_time - goods[id].occur_time + 5); // rest time
 }
 
 int RobotFindGoods(int x, int y) {
@@ -346,6 +376,10 @@ void UpdateRobot(int id) {
       }
       robot[id].PrintLoad();
       goods[robot[id].goods_id].status = Goods::kCaptured;
+      goods_waiting--;
+      goods_waiting_value -= goods[robot[id].goods_id].value;
+      goods_on_robot++;
+      goods_on_robot_value += goods[robot[id].goods_id].value;
 //      goods[robot[id].goods_id].DeallocateMemory();
       AllocateBerthToRobot(id);
       robot[id].dir = kStay;
@@ -367,6 +401,10 @@ void UpdateRobot(int id) {
       }
       robot[id].PrintUnload();
       berth[robot[id].berth_id].saved_goods++;
+      goods_on_robot--;
+      goods_on_robot_value -= goods[robot[id].goods_id].value;
+      goods_on_berth++;
+      goods_on_berth_value += goods[robot[id].goods_id].value;
       robot[id].Refresh();
     } else {
       robot[id].dir = (kInverseDir[dir]);
@@ -553,9 +591,17 @@ void RemoveExpiredGoods() {
     auto &g = goods[goods_removed];
     if (g.status == Goods::kWaiting) {
       g.status = Goods::kExpired;
+      goods_waiting--;
+      goods_waiting_value -= g.value;
+      goods_expired++;
+      goods_expired_value += g.value;
     } else if (g.status == Goods::kTargeted) {
       g.status = Goods::kExpired;
       robot[g.robot_id].Refresh();
+      goods_waiting--;
+      goods_waiting_value -= g.value;
+      goods_expired++;
+      goods_expired_value += g.value;
     } else if (g.status == Goods::kCaptured) {
 //      std::cerr << "Captured Goods should not in list" << std::endl;
     } else {
@@ -609,6 +655,7 @@ int main() {
 //        std::this_thread::sleep_for(std::chrono::milliseconds(14 - duration.count()));
 //      std::cerr << "UpdateOutput time: " << duration.count() << "ms" << std::endl;
 //      }
+    ShowAll();
     PrintOK();
   }
 //  }
