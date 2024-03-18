@@ -419,7 +419,7 @@ double Evaluate(Solution &s) {
     value += temp;
     time_cost = std::min(time_cost, cur_time - current_time);
   }
-  return 1.0 * value + 1.0 * value / time_cost;
+  return 1.0 * value;
 }
 
 double Probability(double dE, double T) {
@@ -428,7 +428,7 @@ double Probability(double dE, double T) {
 
 void Simulate() {
   double init_temper = 1000;
-  double cool_rate = 0.9;
+  double cool_rate = 0.98;
   double iter_times = 100;
   using namespace init_solution;
   InitSolution(best_solution);
@@ -440,22 +440,42 @@ void Simulate() {
     for (int _ = 0; _ < iter_times; _++) {
 //      fputs("TAG1", stderr);
       auto new_solution = cur_solution;
-      std::uniform_int_distribution<int> u(0, kRobotCount - 1);
-      int r1 = u(e);
-      if (new_solution[r1].empty()) {
-        continue;
-      }
-      int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
-      int r2 = u(e);
-      if (new_solution[r2].empty()) {
-        continue;
-      }
-      int idx2 = std::uniform_int_distribution<int>(0, (int) new_solution[r2].size() - 1)(e);
-      if (r1 == r2 && idx1 == idx2) {
-        continue;
-      }
+//      double new_value = 0;
+      int type = std::uniform_int_distribution<int>(0, 1)(e);
+      std::uniform_int_distribution<int> u(0, kRobotCount);
+      if (type == 0) {
+
+        int r1 = u(e);
+        if (new_solution[r1].empty()) {
+          continue;
+        }
+        int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
+        int r2 = u(e);
+        if (new_solution[r2].empty()) {
+          continue;
+        }
+        int idx2 = std::uniform_int_distribution<int>(0, (int) new_solution[r2].size() - 1)(e);
+        if (r1 == r2 && idx1 == idx2) {
+          continue;
+        }
 //      fprintf(stderr, "r1: %d idx1: %d r2: %d idx2: %d\n", r1, idx1, r2, idx2);
-      std::swap(new_solution[r1][idx1], new_solution[r2][idx2]);
+        std::swap(new_solution[r1][idx1], new_solution[r2][idx2]);
+      } else if (type == 1) {
+        int r1 = u(e);
+        if (new_solution[r1].empty()) {
+          continue;
+        }
+        int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
+        int r2 = u(e);
+        int idx2 = 0;
+        if (new_solution[r2].empty()) {
+          idx2 = 0;
+        } else {
+          idx2 = std::uniform_int_distribution<int>(0, (int) new_solution[r2].size() - 1)(e);
+        }
+        new_solution[r2].insert(new_solution[r2].begin()+idx2, new_solution[r1][idx1]);
+        new_solution[r1].erase(new_solution[r1].begin() + idx1);
+      }
 //      fputs("TAG2", stderr);
       auto new_value = Evaluate(new_solution);
       auto dE = new_value - cur_value;
@@ -469,7 +489,6 @@ void Simulate() {
         best_value = cur_value;
       }
 //      fputs("TAG3", stderr);
-
     }
 
     for (int _ = 0; _ < iter_times; _++) {
@@ -909,8 +928,11 @@ void UpdateOutput() {
   simulated_annealing::Simulate();
   for (int i = 0; i < kRobotCount; i++) {
     if (robot[i].status == Robot::kGoingToLoad) {
-      goods[robot[i].goods_id].robot_id = -1;
-      goods[robot[i].goods_id].status = Goods::kWaiting;
+      if (robot[i].goods_id != -1) {
+        goods[robot[i].goods_id].status = Goods::kWaiting;
+        goods[robot[i].goods_id].robot_id = -1;
+        robot[i].Refresh();
+      }
       if (best_solution[i].empty()) {
         robot[i].Refresh();
       } else {
@@ -967,7 +989,7 @@ int main() {
 //        std::this_thread::sleep_for(std::chrono::milliseconds(14 - duration.count()));
 //      std::cerr << "UpdateOutput time: " << duration.count() << "ms" << std::endl;
 //      }
-//    ShowAll();
+    ShowAll();
     PrintOK();
   }
 //  }
