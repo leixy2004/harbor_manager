@@ -5,6 +5,7 @@
 #ifndef HARBOR_MANAGER__ROBOT_H_
 #define HARBOR_MANAGER__ROBOT_H_
 #include <iostream>
+#include <list>
 #include "position.h"
 #include "constant.h"
 #include "map_object.h"

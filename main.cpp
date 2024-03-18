@@ -6,6 +6,7 @@
 #include <cmath>
 //#include <list>
 #include <chrono>
+#include <random>
 //#include <format>
 #include "robot.h"
 #include "constant.h"
@@ -20,7 +21,7 @@ Map map;
 std::array<Ship, kShipCount> ship;
 std::array<Berth, kBerthCount> berth;
 std::array<Goods, kGoodsMaxAdded> goods;
-//std::list<Goods *> goods_waiting;
+std::list<int> goods_waiting_ids;
 //ThreadPool pool(1);
 int current_time = 0;
 int current_value = 0;
@@ -324,94 +325,262 @@ bool Input() {
   return ReadOK();
 }
 
-namespace update_robot_goods {
+typedef std::array<std::vector<int>, kRobotCount + 1> Solution;
+Solution best_solution;
+double best_value = 0;
+std::array<Position, kRobotCount> robot_pos{};
+std::array<int, kRobotCount> pass_time{};
+
+namespace init_solution {
 
 double GetGoodsValue(int id, int x, int y) {
-//  fprintf(stderr, "GetGoodsValue id: %d x: %d y: %d\n", id, x, y);
-//  static double limit = 0.1;
-//    if (current_time - goods[id].occur_time +(*goods[id].dis)[x][y]>= kGoodsDuration) {
-//        return -1;
-//    }
   auto time_cost =
       ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 6);
   auto passed_time = (current_time - goods[id].occur_time + 2.0);
   auto res = std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
-//  if (goods[id].value * 1.0 / time_cost < limit) {
-//    res*=0.8;
-//  }
-//  if ((kGoodsDuration-passed_time)/(*goods[id].dis)[x][y]<1.1){
-//    res*=1.1;
-//  }
-//  fprintf(stderr, "time_cost: %lf value:%d\n", time_cost, goods[id].value);
   return res;
 }
 
-int RobotFindGoods(int x, int y) {
-  //  fprintf(stderr, "RobotFindGoods x: %d y: %d\n", x, y);
-  int goods_id = -1;
-  double max_value = -1;
+void InitSolution(Solution &s) {
+  s[10].clear();
+  for (int i = 0; i < kRobotCount; i++) {
+    s[i].clear();
+    s[i].reserve(20);
+    if (robot[i].status == Robot::kGoingToUnload) {
+      robot_pos[i] = berth[robot[i].berth_id].Center();
+      pass_time[i] = current_time + berth[robot[i].berth_id].dis[robot[i].position.x][robot[i].position.y];
+    } else if (robot[i].status == Robot::kGoingToLoad) {
+      robot_pos[i] = robot[i].position;
+      pass_time[i] = current_time;
+    }
+  }
+  auto temp_pos = robot_pos;
+  auto temp_time = pass_time;
   for (int i = goods_removed; i < goods_added; i++) {
     auto &g = goods[i];
     if (g.status != Goods::kWaiting && g.status != Goods::kTargeted) continue;
     auto &dis = *g.dis;
-    if (current_time - g.occur_time + dis[x][y] >= kGoodsDuration) continue;
-    double v = GetGoodsValue(g.id, x, y);
-    if (g.status == Goods::kTargeted) {
-      double old_v = GetGoodsValue(g.id, robot[g.robot_id].position.x, robot[g.robot_id].position.y);
-      if (v > old_v && v > max_value) {
-        goods_id = g.id;
-        max_value = v;
-      }
-    } else if (g.status == Goods::kWaiting) {
-      if (v > max_value) {
-        goods_id = g.id;
-        max_value = v;
-      }
-    }
-  }
-  return goods_id;
-}
-
-bool AllocateGoodsToRobot(int id) {
-  //  fprintf(stderr, "AllocateGoodsToRobot id: %d\n", id);
-  if (robot[id].status != Robot::kGoingToLoad) {
-    fprintf(stderr, "Robot %d is not going to load?\n", id);
-    return false;
-  }
-  bool flag = false;
-  if (robot[id].goods_id != -1) {
-    goods[robot[id].goods_id].status = Goods::kWaiting;
-    goods[robot[id].goods_id].robot_id = -1;
-    robot[id].goods_id = -1;
-  }
-  int goods_id = RobotFindGoods(robot[id].position.x, robot[id].position.y);
-  if (goods_id == -1) {
-    //    fprintf(stderr, "Robot %d find no goods available.\n", id);
-    return false;
-  }
-  if (goods[goods_id].status == Goods::kTargeted) {
-    robot[goods[goods_id].robot_id].Refresh();
-    flag = true;
-  }
-  robot[id].goods_id = goods_id;
-  goods[goods_id].status = Goods::kTargeted;
-  goods[goods_id].robot_id = id;
-  return flag;
-}
-
-void ArrangeAllRobotAndGoods() {
-  bool flag = false;
-  do {
-    flag = false;
-    for (int i = 0; i < kRobotCount; i++) {
-      if (robot[i].status == Robot::kGoingToLoad) {
-        flag |= AllocateGoodsToRobot(i);
+    double max_value = -1;
+    int max_robot = -1;
+    for (int j = 0; j < kRobotCount; j++) {
+      int x = temp_pos[j].x;
+      int y = temp_pos[j].y;
+      if (temp_time[j] + dis[x][y] + 5 - g.occur_time < kGoodsDuration) {
+        double v = GetGoodsValue(g.id, x, y);
+        if (v > max_value) {
+          max_value = v;
+          max_robot = j;
+        }
       }
     }
-  } while (flag);
+    if (max_robot == -1) {
+      s[10].push_back(g.id);
+      continue;
+    }
+    s[max_robot].push_back(g.id);
+    temp_time[max_robot] += dis[temp_pos[max_robot].x][temp_pos[max_robot].y]
+        + berth[g.berth_id].dis[g.position.x][g.position.y] + 10;
+    temp_pos[max_robot] = berth[g.berth_id].Center();
+  }
+//  fprintf(stderr, "InitSolution Finished\n");
+//  for (int i = 0; i < kRobotCount; i++) {
+//    fprintf(stderr, "Robot %d: ", i);
+//    for (auto &gid : s[i]) {
+//      fprintf(stderr, "%d ", gid);
+//    }
+//    fprintf(stderr, "\n");
+//  }
 }
 
 }
+
+namespace simulated_annealing {
+
+std::default_random_engine e(234);
+double Evaluate(Solution &s) {
+  int value = 0;
+  int time_cost = kInf;
+  for (int i = 0; i < kRobotCount; i++) {
+    int temp = 0;
+    int cur_time = pass_time[i];
+    int x = robot_pos[i].x;
+    int y = robot_pos[i].y;
+    for (auto &gid : s[i]) {
+      auto &g = goods[gid];
+      if (cur_time + (*g.dis)[x][y] + 5 - g.occur_time < kGoodsDuration) {
+        temp += g.value;
+        auto &b = berth[g.berth_id];
+        cur_time += (*g.dis)[x][y] + b.dis[g.position.x][g.position.y] + 10;
+        auto pos = b.Center();
+        x = pos.x;
+        y = pos.y;
+      }
+    }
+    value += temp;
+    time_cost = std::min(time_cost, cur_time - current_time);
+  }
+  return 1.0 * value + 1.0 * value / time_cost;
+}
+
+double Probability(double dE, double T) {
+  return dE < 0 ? 1 : std::exp(-dE / T);
+}
+
+void Simulate() {
+  double init_temper = 1000;
+  double cool_rate = 0.9;
+  double iter_times = 100;
+  using namespace init_solution;
+  InitSolution(best_solution);
+  best_value = Evaluate(best_solution);
+  auto cur_solution = best_solution;
+  auto cur_value = best_value;
+  for (double temper = init_temper; temper > 0.1; temper *= cool_rate) {
+//    fprintf(stderr, "Simulated Annealing: temper: %.2lf\n", temper);
+    for (int _ = 0; _ < iter_times; _++) {
+//      fputs("TAG1", stderr);
+      auto new_solution = cur_solution;
+      std::uniform_int_distribution<int> u(0, kRobotCount - 1);
+      int r1 = u(e);
+      if (new_solution[r1].empty()) {
+        continue;
+      }
+      int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
+      int r2 = u(e);
+      if (new_solution[r2].empty()) {
+        continue;
+      }
+      int idx2 = std::uniform_int_distribution<int>(0, (int) new_solution[r2].size() - 1)(e);
+      if (r1 == r2 && idx1 == idx2) {
+        continue;
+      }
+//      fprintf(stderr, "r1: %d idx1: %d r2: %d idx2: %d\n", r1, idx1, r2, idx2);
+      std::swap(new_solution[r1][idx1], new_solution[r2][idx2]);
+//      fputs("TAG2", stderr);
+      auto new_value = Evaluate(new_solution);
+      auto dE = new_value - cur_value;
+      if (dE > 0 && std::uniform_real_distribution<double>(0, 1)(e) > Probability(dE, temper)) {
+        continue;
+      }
+      cur_solution = new_solution;
+      cur_value = new_value;
+      if (cur_value > best_value) {
+        best_solution = cur_solution;
+        best_value = cur_value;
+      }
+//      fputs("TAG3", stderr);
+
+    }
+
+    for (int _ = 0; _ < iter_times; _++) {
+//      fputs("TAG1", stderr);
+      auto new_solution = cur_solution;
+      std::uniform_int_distribution<int> u(0, kRobotCount - 1);
+      int r1 = u(e);
+      if (new_solution[r1].empty()) {
+        continue;
+      }
+      int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
+      if (std::bernoulli_distribution(0.5)(e)) {
+        continue;
+      }
+      new_solution[10].push_back(new_solution[r1][idx1]);
+      new_solution[r1].erase(new_solution[r1].begin() + idx1);
+//      fputs("TAG2", stderr);
+      auto new_value = Evaluate(new_solution);
+      auto dE = new_value - cur_value;
+      if (dE > 0 && std::uniform_real_distribution<double>(0, 1)(e) > Probability(dE, temper)) {
+        continue;
+      }
+      cur_solution = new_solution;
+      cur_value = new_value;
+      if (cur_value > best_value) {
+        best_solution = cur_solution;
+        best_value = cur_value;
+      }
+//      fputs("TAG3", stderr);
+
+    }
+  }
+//    fprintf(stderr, "Simulated Annealing Finished\n");
+}
+
+}
+//namespace update_robot_goods {
+//
+//double GetGoodsValue(int id, int x, int y) {
+//  auto time_cost =
+//      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 6);
+//  auto passed_time = (current_time - goods[id].occur_time + 2.0);
+//  auto res = std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
+//  return res;
+//}
+//
+//int RobotFindGoods(int x, int y) {
+//  int goods_id = -1;
+//  double max_value = -1;
+//  for (int i = goods_removed; i < goods_added; i++) {
+//    auto &g = goods[i];
+//    if (g.status != Goods::kWaiting && g.status != Goods::kTargeted) continue;
+//    auto &dis = *g.dis;
+//    if (current_time - g.occur_time + dis[x][y] >= kGoodsDuration) continue;
+//    double v = GetGoodsValue(g.id, x, y);
+//    if (g.status == Goods::kTargeted) {
+//      double old_v = GetGoodsValue(g.id, robot[g.robot_id].position.x, robot[g.robot_id].position.y);
+//      if (v > old_v && v > max_value) {
+//        goods_id = g.id;
+//        max_value = v;
+//      }
+//    } else if (g.status == Goods::kWaiting) {
+//      if (v > max_value) {
+//        goods_id = g.id;
+//        max_value = v;
+//      }
+//    }
+//  }
+//  return goods_id;
+//}
+//
+//bool AllocateGoodsToRobot(int id) {
+//  //  fprintf(stderr, "AllocateGoodsToRobot id: %d\n", id);
+//  if (robot[id].status != Robot::kGoingToLoad) {
+//    fprintf(stderr, "Robot %d is not going to load?\n", id);
+//    return false;
+//  }
+//  bool flag = false;
+//  if (robot[id].goods_id != -1) {
+//    goods[robot[id].goods_id].status = Goods::kWaiting;
+//    goods[robot[id].goods_id].robot_id = -1;
+//    robot[id].goods_id = -1;
+//  }
+//  int goods_id = RobotFindGoods(robot[id].position.x, robot[id].position.y);
+//  if (goods_id == -1) {
+//    //    fprintf(stderr, "Robot %d find no goods available.\n", id);
+//    return false;
+//  }
+//  if (goods[goods_id].status == Goods::kTargeted) {
+//    robot[goods[goods_id].robot_id].Refresh();
+//    flag = true;
+//  }
+//  robot[id].goods_id = goods_id;
+//  goods[goods_id].status = Goods::kTargeted;
+//  goods[goods_id].robot_id = id;
+//  return flag;
+//}
+//
+//void ArrangeAllRobotAndGoods() {
+//  bool flag = false;
+//  do {
+//    flag = false;
+//    for (int i = 0; i < kRobotCount; i++) {
+//      if (robot[i].status == Robot::kGoingToLoad) {
+//        flag |= AllocateGoodsToRobot(i);
+//      }
+//    }
+//  } while (flag);
+//}
+//
+//}
 
 namespace update_robot_berth {
 
@@ -454,7 +623,6 @@ void AllocateBerthToRobot(int id) {
   }
   robot[id].status = Robot::kGoingToUnload;
   robot[id].berth_id = berth_id;
-
 }
 
 void ArrangeAllRobotAndBerth() {
@@ -468,7 +636,7 @@ void ArrangeAllRobotAndBerth() {
 }
 
 void RobotLoadAndUnload(int id) {
-  using namespace update_robot_goods;
+//  using namespace update_robot_goods;
   using namespace update_robot_berth;
   int &x = robot[id].position.x;
   int &y = robot[id].position.y;
@@ -513,7 +681,7 @@ void RobotLoadAndUnload(int id) {
 }
 
 void UpdateRobotMoveDir(int id) {
-  using namespace update_robot_goods;
+//  using namespace update_robot_goods;
   using namespace update_robot_berth;
   int &x = robot[id].position.x;
   int &y = robot[id].position.y;
@@ -587,13 +755,13 @@ bool CheckMoveAndMakeValid() {
           auto new_pos_j = robot[j].position.Move(robot[j].dir);
           if (new_pos_j == robot[i].position) {
             bool change = false;
-//            for (auto &k : kTurn) {
-//              if (map.IsEmpty(robot[j].position.Move(k[robot[j].dir]))) {
-//                robot[j].dir = k[robot[j].dir];
-//                change = true;
-//                break;
-//              }
-//            }
+            for (auto &k : kTurn) {
+              if (map.IsEmpty(robot[j].position.Move(k[robot[j].dir]))) {
+                robot[j].dir = k[robot[j].dir];
+                change = true;
+                break;
+              }
+            }
             if (!change) {
               robot[j].dir = kStay;
             }
@@ -627,13 +795,13 @@ int ShipFindBerth(int id) {
 }
 
 void UpdateShip(int id) {
-  fprintf(stderr,
-          "UpdateShip id: %d status %d  dir %d have %d/%d goods\n",
-          id,
-          ship[id].status,
-          ship[id].dir,
-          ship[id].nowGoods,
-          ship[id].capacity);
+//  fprintf(stderr,
+//          "UpdateShip id: %d status %d  dir %d have %d/%d goods\n",
+//          id,
+//          ship[id].status,
+//          ship[id].dir,
+//          ship[id].nowGoods,
+//          ship[id].capacity);
   if (ship[id].status == Ship::kAtEnd) {
     int dir = ShipFindBerth(id);
     if (dir != -1) {
@@ -719,7 +887,6 @@ void RemoveExpiredGoods() {
       goods_waiting_value -= g.value;
       goods_expired++;
       goods_expired_value += g.value;
-
     } else if (g.status == Goods::kCaptured) {
 //      std::cerr << "Captured Goods should not in list" << std::endl;
     } else {
@@ -739,12 +906,34 @@ void UpdateOutput() {
   for (int i = 0; i < kRobotCount; i++) {
     RobotLoadAndUnload(i);
   }
-  update_robot_goods::ArrangeAllRobotAndGoods();
+  simulated_annealing::Simulate();
+  for (int i = 0; i < kRobotCount; i++) {
+    if (robot[i].status == Robot::kGoingToLoad) {
+      goods[robot[i].goods_id].robot_id = -1;
+      goods[robot[i].goods_id].status = Goods::kWaiting;
+      if (best_solution[i].empty()) {
+        robot[i].Refresh();
+      } else {
+        robot[i].goods_id = best_solution[i].front();
+        goods[robot[i].goods_id].status = Goods::kTargeted;
+        goods[robot[i].goods_id].robot_id = i;
+      }
+    }
+  }
+//  update_robot_goods::ArrangeAllRobotAndGoods();
   update_robot_berth::ArrangeAllRobotAndBerth();
   for (int i = 0; i < kRobotCount; i++) {
     UpdateRobotMoveDir(i);
   }
-  for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {
+//  for (int i = 0; i < kRobotCount; i++) {
+//    fprintf(stderr, "Robot %d: status:%d gid:%d bid:%d dir:%d\n", i,
+//            robot[i].status,
+//            robot[i].goods_id,
+//            robot[i].berth_id,
+//            robot[i].dir);
+//  }
+//  while (CheckMoveAndMakeValid()) {}
+  for (int cnt = 0; cnt < 109 && CheckMoveAndMakeValid(); cnt++) {
 //    fprintf(stderr, RED("CheckMoveAndMakeValid\n"));
   }
   for (auto &i : robot) {
