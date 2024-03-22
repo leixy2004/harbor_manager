@@ -6,6 +6,7 @@
 #include <cmath>
 //#include <list>
 #include <chrono>
+#include <tuple>
 #include <random>
 //#include <format>
 #include "robot.h"
@@ -27,6 +28,12 @@ int current_time = 0;
 int current_value = 0;
 int goods_added = 0;
 int goods_removed = 0;
+typedef std::array<std::vector<int>, kRobotCount + 1> Solution;
+Solution best_solution;
+double best_value = -kInf;
+//std::array<Position, kRobotCount> robot_pos{};
+//std::array<int, kRobotCount> pass_time{};
+
 void PrintOK() {
   std::cout << "OK" << std::endl;
   std::cout.flush();
@@ -43,11 +50,11 @@ int goods_waiting = 0;
 int goods_waiting_value = 0;
 int goods_on_robot = 0;
 int goods_on_robot_value = 0;
-int goods_on_ship = 0;
-int goods_on_ship_value = 0;
+//int goods_on_ship = 0;
+//int goods_on_ship_value = 0;
 int goods_on_berth = 0;
 int goods_on_berth_value = 0;
-int time_cost = 0;
+//int time_cost = 0;
 void ShowAll() {
   //  fprintf(f, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
   //          goods_waiting,
@@ -89,6 +96,14 @@ void ShowAll() {
     fprintf(stderr, "%d:%d ", i, berth[i].saved_goods);
   }
   fprintf(stderr, "\n");
+  fprintf(stderr, "goods_list:\n");
+  for (int i = 0; i <= 10; i++) {
+    fprintf(stderr, "[%2d]", i);
+    for (auto gid : best_solution[i]) {
+      fprintf(stderr, " %d ", gid);
+    }
+    fprintf(stderr, "\n");
+  }
 }
 //long long TimeRecord() {
 //  static std::chrono::high_resolution_clock::time_point last_time{};
@@ -152,43 +167,43 @@ void InitAllBerth() {
       }
     }
   }
-  auto f = fopen("statistics.txt", "w");
+//  auto f = fopen("statistics.txt", "w");
 
-  for (int x = 0; x < kN; x++) {
-    for (int y = 0; y < kN; y++) {
-      if (map.berth_id[x][y] == -1) {
-        fprintf(f, " ");
-      } else {
-        fprintf(f, "%d", map.berth_id[x][y]);
-      }
-    }
-    fprintf(f, "\n");
-  }
-  fprintf(f, "\n");
-  for (int x = 0; x < kN; x++) {
-    for (int y = 0; y < kN; y++) {
-      if (map.dis[x][y] == kInf) {
-        fprintf(f, "    ");
-      } else {
-        fprintf(f, "%3d ", map.dis[x][y]);
-      }
-    }
-    fprintf(f, "\n");
-  }
-  fprintf(f, "\n");
-  for (int x = 0; x < kN; x++) {
-    for (int y = 0; y < kN; y++) {
-      if (map.pre[x][y] == kStay) {
-        fprintf(f, " ");
-      } else {
-        static const char *kDirChar = "><AV";
-        fprintf(f, "%c", kDirChar[kInverseDir[map.pre[x][y]]]);
-      }
-    }
-    fprintf(f, "\n");
-  }
-  fprintf(f, "\n");
-  fclose(f);
+//  for (int x = 0; x < kN; x++) {
+//    for (int y = 0; y < kN; y++) {
+//      if (map.berth_id[x][y] == -1) {
+//        fprintf(f, " ");
+//      } else {
+//        fprintf(f, "%d", map.berth_id[x][y]);
+//      }
+//    }
+//    fprintf(f, "\n");
+//  }
+//  fprintf(f, "\n");
+//  for (int x = 0; x < kN; x++) {
+//    for (int y = 0; y < kN; y++) {
+//      if (map.dis[x][y] == kInf) {
+//        fprintf(f, "    ");
+//      } else {
+//        fprintf(f, "%3d ", map.dis[x][y]);
+//      }
+//    }
+//    fprintf(f, "\n");
+//  }
+//  fprintf(f, "\n");
+//  for (int x = 0; x < kN; x++) {
+//    for (int y = 0; y < kN; y++) {
+//      if (map.pre[x][y] == kStay) {
+//        fprintf(f, " ");
+//      } else {
+//        static const char *kDirChar = "><AV";
+//        fprintf(f, "%c", kDirChar[kInverseDir[map.pre[x][y]]]);
+//      }
+//    }
+//    fprintf(f, "\n");
+//  }
+//  fprintf(f, "\n");
+//  fclose(f);
 
 }
 
@@ -221,28 +236,175 @@ void Init() {
     std::cerr << "Init failed" << std::endl;
   }
 }
-int near_dis = 20;
-//void AddColor(int goods_id) {
+//int near_dis = 20;
+
+//void RemoveColor(int goods_id) {
 //  for (int i = 0; i < kN; i++) {
 //    for (int j = 0; j < kN; j++) {
 //      auto d = (*goods[goods_id].dis)[i][j];
 //      if (d < near_dis) {
-//        map.color[i][j] += (near_dis - d) * goods[goods_id].value;
+//        map.color[i][j] -= (near_dis - d) * goods[goods_id].value;
 //      }
 //    }
 //  }
 //}
 
-void RemoveColor(int goods_id) {
-  for (int i = 0; i < kN; i++) {
-    for (int j = 0; j < kN; j++) {
-      auto d = (*goods[goods_id].dis)[i][j];
-      if (d < near_dis) {
-        map.color[i][j] -= (near_dis - d) * goods[goods_id].value;
+
+namespace simulated_annealing {
+double punish_rate = 100;
+std::default_random_engine e(234);
+
+auto FakePerform(Solution &s, int rid) {
+  if (rid==-1 || rid>=kRobotCount) {
+    fprintf(stderr,RED("FakePerform rid is err\n"));
+  }
+  int caught = 0;
+  int waste = 0;
+  int cur_time = current_time;
+  int x = robot[rid].position.x;
+  int y = robot[rid].position.y;
+  if (robot[rid].status == Robot::kGoingToUnload) {
+    int bid = robot[rid].berth_id;
+    if (bid==-1) {
+      fprintf(stderr,RED("Robot %d is going to unload but berth_id is -1\n"),rid);
+    }
+    cur_time += berth[bid].dis[x][y];
+    auto pos = berth[bid].Center();
+    x = pos.x;
+    y = pos.y;
+  }
+  for (auto &gid : s[rid]) {
+    auto &g = goods[gid];
+    if (g.status!=Goods::kWaiting && g.status!=Goods::kTargeted) {
+      fprintf(stderr,RED("Goods %d status is err(%d)\n"),gid,g.status);
+    }
+    if (cur_time + (*g.dis)[x][y] + 5 - g.occur_time < kGoodsDuration) {
+      caught += g.value;
+      auto &b = berth[g.berth_id];
+      cur_time += (*g.dis)[x][y] + b.dis[g.position.x][g.position.y] + 10;
+      auto pos = b.Center();
+      x = pos.x;
+      y = pos.y;
+    } else {
+      waste += g.value;
+    }
+  }
+//  fprintf(stderr, "FP [%d] %d %d\n", rid, waste, cur_time);
+  return std::make_tuple(caught, waste, cur_time-current_time);
+}
+
+auto ChooseInsertPosition(Solution &s, int gid) {
+//  fprintf(stderr,"ChooseInsertPosition BEGIN\n");
+  int best_rid = 10, best_idx = 0;
+  int best_dv = 0, best_dw = kInf, best_dt = kInf;
+  auto &g=goods[gid];
+  for (int rid = 0; rid < kRobotCount; rid++) {
+    auto &r=robot[rid];
+    if (current_time+(*g.dis)[r.position.x][r.position.y]-g.occur_time>=kGoodsDuration) {
+      continue;
+    }
+    int old_v, old_w, old_t;
+    int new_v, new_w, new_t;
+    std::tie(old_v, old_w, old_t) = FakePerform(s, rid);
+    if (s[rid].empty()) {
+      s[rid].push_back(gid);
+      std::tie(new_v, new_w, new_t) = FakePerform(s, rid);
+      if (std::make_tuple(new_v, -new_w, -new_t) > std::make_tuple(old_v, -old_w, -old_t)) {
+        int dv = new_v - old_v;
+        int dw = new_w - old_w;
+        int dt = new_t - old_t;
+        if (std::make_tuple(dv, -dw, -dt) > std::make_tuple(best_dv, -best_dw, -best_dt)) {
+          std::tie(best_rid, best_idx, best_dv, best_dw, best_dt)
+              = std::make_tuple(rid, 0, dv, dw, dt);
+        }
+      }
+      s[rid].pop_back();
+    } else {
+      for (int idx = 0; idx < s[rid].size(); idx++) {
+        if (idx == 0) {
+          s[rid].insert(s[rid].begin(), gid);
+        } else {
+          std::swap(s[rid][idx], s[rid][idx - 1]);
+        }
+        std::tie(new_v, new_w, new_t) = FakePerform(s, rid);
+        if (std::make_tuple(new_v, -new_w, -new_t) > std::make_tuple(old_v, -old_w, -old_t)) {
+          int dv = new_v - old_v;
+          int dw = new_w - old_w;
+          int dt = new_t - old_t;
+          if (std::make_tuple(dv, -dw, -dt) > std::make_tuple(best_dv, -best_dw, -best_dt)) {
+            std::tie(best_rid, best_idx, best_dv, best_dw, best_dt)
+                = std::make_tuple(rid, idx, dv, dw, dt);
+          }
+        }
+      }
+      s[rid].pop_back();
+    }
+  }
+//    fprintf(stderr,"ChooseInsertPosition END\n");
+  return std::make_tuple(best_rid, best_idx);
+}
+
+double Evaluate(Solution &s) {
+  int tot_v = 0;
+  int tot_w=0;
+  int tot_t=0;
+  for (int i = 0; i < kRobotCount; i++) {
+    int v,w, t;
+    std::tie(v,w, t) = FakePerform(s, i);
+    tot_v+=v;
+    tot_w+=w;
+    tot_t+=t;
+  }
+  return tot_v-(tot_t + punish_rate * tot_w);
+}
+
+double Probability(double dE, double T) {
+  return dE < 0 ? 1 : std::exp(-dE / T);
+}
+
+void Simulate() {
+    fprintf(stderr,"Simulate BEGIN\n");
+  double init_temper = 500;
+  double cool_rate = 0.95;
+  double iter_times = 100;
+//  using namespace init_solution;
+//  InitSolution(best_solution);
+  auto cur_solution = best_solution;
+  auto cur_value = best_value;
+  for (double temper = init_temper; temper > 0.1; temper *= cool_rate) {
+//    fprintf(stderr, "Simulated Annealing: temper: %.2lf\n", temper);
+    for (int _ = 0; _ < iter_times; _++) {
+      auto new_solution = cur_solution;
+      double new_value;
+      auto old_rid = std::uniform_int_distribution<int>(0, kRobotCount)(e);
+      if (new_solution[old_rid].empty()) continue;
+      auto old_idx = std::uniform_int_distribution<int>(0, (int) new_solution[old_rid].size() - 1)(e);
+      auto gid = new_solution[old_rid][old_idx];
+      new_solution[old_rid].erase(new_solution[old_rid].begin() + old_idx);
+//      fprintf(stderr, "Simulated Annealing: old_rid: %d old_idx: %d gid: %d\n", old_rid, old_idx, gid);
+      int best_rid, best_idx;
+      std::tie(best_rid, best_idx) = ChooseInsertPosition(new_solution, gid);
+      new_solution[best_rid].insert(new_solution[best_rid].begin() + best_idx, gid);
+      new_value = Evaluate(new_solution);
+      auto dE = new_value - cur_value;
+      if (dE > 0 && std::uniform_real_distribution<double>(0, 1)(e) > Probability(dE, temper)) {
+//        punish_rate /= 0.8;
+        continue;
+      }
+//      punish_rate *= 0.8;
+      cur_solution = new_solution;
+      cur_value = new_value;
+      if (cur_value > best_value) {
+        best_solution = cur_solution;
+        best_value = cur_value;
       }
     }
   }
+  fprintf(stderr,"Simulate END\n");
 }
+
+}
+
 namespace input {
 
 void AddGoods() {
@@ -260,11 +422,12 @@ void AddGoods() {
     g.AllocateMemory();
     Bfs(1, &g.position, *g.dis, *g.pre, map);
     g.status = Goods::kWaiting;
-//    AddColor(g.id);
     goods_waiting++;
     goods_waiting_value += g.value;
-//    goods_waiting.push_back(ptr);
-
+    int rid, idx;
+    std::tie(rid, idx)
+        = simulated_annealing::ChooseInsertPosition(best_solution, g.id);
+    best_solution[rid].insert(best_solution[rid].begin() + idx, g.id);
   }(goods[goods_added]);
   goods_added++;
 }
@@ -309,6 +472,8 @@ void InputShip(int id) {
 }
 
 bool Input() {
+  fprintf(stderr,"Input BEGIN\n");
+
   using namespace input;
   std::cin >> current_time >> current_value;
   int temp_goods;
@@ -322,216 +487,74 @@ bool Input() {
   for (int i = 0; i < kShipCount; i++) {
     InputShip(i);
   }
+  fprintf(stderr,"Input END\n");
   return ReadOK();
 }
 
-typedef std::array<std::vector<int>, kRobotCount + 1> Solution;
-Solution best_solution;
-double best_value = 0;
-std::array<Position, kRobotCount> robot_pos{};
-std::array<int, kRobotCount> pass_time{};
 
-namespace init_solution {
-
-double GetGoodsValue(int id, int x, int y) {
-  auto time_cost =
-      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 6);
-  auto passed_time = (current_time - goods[id].occur_time + 2.0);
-  auto res = std::exp(1+goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
-  return res;
-}
-
-void InitSolution(Solution &s) {
-  s[10].clear();
-  for (int i = 0; i < kRobotCount; i++) {
-    s[i].clear();
-    s[i].reserve(20);
-    if (robot[i].status == Robot::kGoingToUnload) {
-      robot_pos[i] = berth[robot[i].berth_id].Center();
-      pass_time[i] = current_time + berth[robot[i].berth_id].dis[robot[i].position.x][robot[i].position.y];
-    } else if (robot[i].status == Robot::kGoingToLoad) {
-      robot_pos[i] = robot[i].position;
-      pass_time[i] = current_time;
-    }
-  }
-  auto temp_pos = robot_pos;
-  auto temp_time = pass_time;
-  for (int i = goods_removed; i < goods_added; i++) {
-    auto &g = goods[i];
-    if (g.status != Goods::kWaiting && g.status != Goods::kTargeted) continue;
-    auto &dis = *g.dis;
-    double max_value = -1;
-    int max_robot = -1;
-    for (int j = 0; j < kRobotCount; j++) {
-      int x = temp_pos[j].x;
-      int y = temp_pos[j].y;
-      if (temp_time[j] + dis[x][y] + 5 - g.occur_time < kGoodsDuration) {
-        double v = GetGoodsValue(g.id, x, y);
-        if (v > max_value) {
-          max_value = v;
-          max_robot = j;
-        }
-      }
-    }
-    if (max_robot == -1) {
-      s[10].push_back(g.id);
-      continue;
-    }
-    s[max_robot].push_back(g.id);
-    temp_time[max_robot] += dis[temp_pos[max_robot].x][temp_pos[max_robot].y]
-        + berth[g.berth_id].dis[g.position.x][g.position.y] + 10;
-    temp_pos[max_robot] = berth[g.berth_id].Center();
-  }
-//  fprintf(stderr, "InitSolution Finished\n");
-//  for (int i = 0; i < kRobotCount; i++) {
-//    fprintf(stderr, "Robot %d: ", i);
-//    for (auto &gid : s[i]) {
-//      fprintf(stderr, "%d ", gid);
-//    }
-//    fprintf(stderr, "\n");
-//  }
-}
-
-}
-
-namespace simulated_annealing {
-
-std::default_random_engine e(234);
-double Evaluate(Solution &s) {
-  int value = 0;
-  int time_cost = 0;
-  for (int i = 0; i < kRobotCount; i++) {
-    int temp = 0;
-    int cur_time = pass_time[i];
-    int x = robot_pos[i].x;
-    int y = robot_pos[i].y;
-    for (auto &gid : s[i]) {
-      auto &g = goods[gid];
-      if (cur_time + (*g.dis)[x][y] + 5 - g.occur_time < kGoodsDuration) {
-        temp += g.value;
-        auto &b = berth[g.berth_id];
-        cur_time += (*g.dis)[x][y] + b.dis[g.position.x][g.position.y] + 10;
-        auto pos = b.Center();
-        x = pos.x;
-        y = pos.y;
-      }
-    }
-    value += temp;
-    time_cost +=cur_time - current_time;
-  }
-
-//  fprintf(stderr,"E value:%d tico:%d\n",value,time_cost);
-  return 1.0 * value+1.0*value/time_cost;
-}
-
-double Probability(double dE, double T) {
-  return dE < 0 ? 1 : std::exp(-dE / T);
-}
-
-void Simulate() {
-  double init_temper = 500;
-  double cool_rate = 0.95;
-  double iter_times = 100;
-  using namespace init_solution;
-  InitSolution(best_solution);
-  best_value = Evaluate(best_solution);
-  auto cur_solution = best_solution;
-  auto cur_value = best_value;
-  for (double temper = init_temper; temper > 0.1; temper *= cool_rate) {
-//    fprintf(stderr, "Simulated Annealing: temper: %.2lf\n", temper);
-    for (int _ = 0; _ < iter_times; _++) {
-//      fputs("TAG1", stderr);
-      auto new_solution = cur_solution;
-//      double new_value = 0;
-      int type = std::uniform_int_distribution<int>(0, 1)(e);
-      std::uniform_int_distribution<int> u(0, kRobotCount);
-      if (type == 0) {
-        int r1 = u(e);
-        if (new_solution[r1].empty()) {
-          continue;
-        }
-        auto func = [](){};
-//        int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
-        int idx1=0;
-        int r2 = u(e);
-        if (new_solution[r2].empty()) {
-          continue;
-        }
-        int idx2 = std::uniform_int_distribution<int>(0, (int) new_solution[r2].size() - 1)(e);
-        if (r1 == r2 && idx1 == idx2) {
-          continue;
-        }
-//      fprintf(stderr, "r1: %d idx1: %d r2: %d idx2: %d\n", r1, idx1, r2, idx2);
-        std::swap(new_solution[r1][idx1], new_solution[r2][idx2]);
-      } else if (type == 1) {
-        int r1 = u(e);
-        if (new_solution[r1].empty()) {
-          continue;
-        }
-        int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
-        int r2 = u(e);
-        int idx2 = 0;
-        if (new_solution[r2].empty()) {
-          idx2 = 0;
-        } else {
-          idx2 = std::uniform_int_distribution<int>(0, (int) new_solution[r2].size() - 1)(e);
-        }
-        new_solution[r2].insert(new_solution[r2].begin() + idx2, new_solution[r1][idx1]);
-        new_solution[r1].erase(new_solution[r1].begin() + idx1);
-      } else if (type== 2) {
-//        int r1=u(e);
-//        if (new_solution[r1].size()<2) continue;
-
-      }
-//      fputs("TAG2", stderr);
-      auto new_value = Evaluate(new_solution);
-      auto dE = new_value - cur_value;
-      if (dE > 0 && std::uniform_real_distribution<double>(0, 1)(e) > Probability(dE, temper)) {
-        continue;
-      }
-      cur_solution = new_solution;
-      cur_value = new_value;
-      if (cur_value > best_value) {
-        best_solution = cur_solution;
-        best_value = cur_value;
-      }
-//      fputs("TAG3", stderr);
-    }
-
-//    for (int _ = 0; _ < iter_times; _++) {
-////      fputs("TAG1", stderr);
-//      auto new_solution = cur_solution;
-//      std::uniform_int_distribution<int> u(0, kRobotCount - 1);
-//      int r1 = u(e);
-//      if (new_solution[r1].empty()) {
-//        continue;
-//      }
-//      int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
-//      if (std::bernoulli_distribution(0.5)(e)) {
-//        continue;
-//      }
-//      new_solution[10].push_back(new_solution[r1][idx1]);
-//      new_solution[r1].erase(new_solution[r1].begin() + idx1);
-////      fputs("TAG2", stderr);
-//      auto new_value = Evaluate(new_solution);
-//      auto dE = new_value - cur_value;
-//      if (dE > 0 && std::uniform_real_distribution<double>(0, 1)(e) > Probability(dE, temper)) {
-//        continue;
-//      }
-//      cur_solution = new_solution;
-//      cur_value = new_value;
-//      if (cur_value > best_value) {
-//        best_solution = cur_solution;
-//        best_value = cur_value;
-//      }
-////      fputs("TAG3", stderr);
+//namespace init_solution {
 //
+//double GetGoodsValue(int id, int x, int y) {
+//  auto time_cost =
+//      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 6);
+//  auto passed_time = (current_time - goods[id].occur_time + 2.0);
+//  auto res = std::exp(1+goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
+//  return res;
+//}
+//
+//void InitSolution(Solution &s) {
+//  s[10].clear();
+//  for (int i = 0; i < kRobotCount; i++) {
+//    s[i].clear();
+//    s[i].reserve(20);
+//    if (robot[i].status == Robot::kGoingToUnload) {
+//      robot_pos[i] = berth[robot[i].berth_id].Center();
+//      pass_time[i] = current_time + berth[robot[i].berth_id].dis[robot[i].position.x][robot[i].position.y];
+//    } else if (robot[i].status == Robot::kGoingToLoad) {
+//      robot_pos[i] = robot[i].position;
+//      pass_time[i] = current_time;
 //    }
-  }
-//    fprintf(stderr, "Simulated Annealing Finished\n");
-}
+//  }
+//  auto temp_pos = robot_pos;
+//  auto temp_time = pass_time;
+//  for (int i = goods_removed; i < goods_added; i++) {
+//    auto &g = goods[i];
+//    if (g.status != Goods::kWaiting && g.status != Goods::kTargeted) continue;
+//    auto &dis = *g.dis;
+//    double max_value = -1;
+//    int max_robot = -1;
+//    for (int j = 0; j < kRobotCount; j++) {
+//      int x = temp_pos[j].x;
+//      int y = temp_pos[j].y;
+//      if (temp_time[j] + dis[x][y] + 5 - g.occur_time < kGoodsDuration) {
+//        double v = GetGoodsValue(g.id, x, y);
+//        if (v > max_value) {
+//          max_value = v;
+//          max_robot = j;
+//        }
+//      }
+//    }
+//    if (max_robot == -1) {
+//      s[10].push_back(g.id);
+//      continue;
+//    }
+//    s[max_robot].push_back(g.id);
+//    temp_time[max_robot] += dis[temp_pos[max_robot].x][temp_pos[max_robot].y]
+//        + berth[g.berth_id].dis[g.position.x][g.position.y] + 10;
+//    temp_pos[max_robot] = berth[g.berth_id].Center();
+//  }
+////  fprintf(stderr, "InitSolution Finished\n");
+////  for (int i = 0; i < kRobotCount; i++) {
+////    fprintf(stderr, "Robot %d: ", i);
+////    for (auto &gid : s[i]) {
+////      fprintf(stderr, "%d ", gid);
+////    }
+////    fprintf(stderr, "\n");
+////  }
+//}
+//
+//}
 
-}
 //namespace update_robot_goods {
 //
 //double GetGoodsValue(int id, int x, int y) {
@@ -662,6 +685,7 @@ void ArrangeAllRobotAndBerth() {
 }
 
 void RobotLoadAndUnload(int id) {
+//  fprintf(stderr,"RobotLoadAndUnload BEGIN\n");
 //  using namespace update_robot_goods;
   using namespace update_robot_berth;
   int &x = robot[id].position.x;
@@ -673,17 +697,22 @@ void RobotLoadAndUnload(int id) {
     if ((*goods[robot[id].goods_id].pre)[x][y] == kStay) { // load
       if (robot[id].position != goods[robot[id].goods_id].position
           || goods[robot[id].goods_id].status != Goods::kTargeted) {
-        fprintf(stderr, RED("Robot find no goods there,\n"));
+        fprintf(stderr, RED("Robot find no goods there(state:%d)\n"),goods[robot[id].goods_id].status);
         robot[id].Refresh();
+        return;
       }
       robot[id].PrintLoad();
       robot[id].status = Robot::kGoingToUnload;
       goods[robot[id].goods_id].status = Goods::kCaptured;
-//      RemoveColor(robot[id].goods_id);
+      if (best_solution[id].front()!=robot[id].goods_id) {
+        fprintf(stderr,RED("Robot %d load goods %d but best_solution is %d\n"),id,robot[id].goods_id,best_solution[id].front());
+      }
+        best_solution[id].erase(best_solution[id].begin());
       goods_waiting--;
       goods_waiting_value -= goods[robot[id].goods_id].value;
       goods_on_robot++;
       goods_on_robot_value += goods[robot[id].goods_id].value;
+      return;
     }
   } else if (robot[id].status == Robot::kGoingToUnload) {
     if (robot[id].berth_id == -1) {
@@ -702,8 +731,11 @@ void RobotLoadAndUnload(int id) {
       goods_on_berth++;
       goods_on_berth_value += goods[robot[id].goods_id].value;
       robot[id].Refresh();
+      return;
     }
   }
+//  fprintf(stderr,"RobotLoadAndUnload END\n");
+
 }
 
 void UpdateRobotMoveDir(int id) {
@@ -925,14 +957,19 @@ void RemoveExpiredGoods() {
 //      && goods_waiting.front()->status == Goods::kExpired) {
 //    goods_waiting.pop_front();
 //  }
+  for (auto v : best_solution) {
+    v.erase(std::remove_if(v.begin(), v.end(), [&](int gid) {
+      return goods[gid].status == Goods::kExpired || goods[gid].status == Goods::kCaptured;
+    }), v.end());
+  }
 }
 
 void UpdateOutput() {
   RemoveExpiredGoods();
+  simulated_annealing::Simulate();
   for (int i = 0; i < kRobotCount; i++) {
     RobotLoadAndUnload(i);
   }
-  simulated_annealing::Simulate();
   for (int i = 0; i < kRobotCount; i++) {
     if (robot[i].status == Robot::kGoingToLoad) {
       if (robot[i].goods_id != -1) {
@@ -968,7 +1005,11 @@ void UpdateOutput() {
   for (auto &i : robot) {
     if (i.dir != kStay) i.PrintMove();
   }
-
+  for (auto v : best_solution) {
+    v.erase(std::remove_if(v.begin(), v.end(), [&](int gid) {
+      return goods[gid].status == Goods::kExpired || goods[gid].status == Goods::kCaptured;
+    }), v.end());
+  }
   if (current_time == 1) {
     for (int i = 0; i < kShipCount; i++) {
       berth[i].have_ship++;
@@ -987,15 +1028,7 @@ void UpdateOutput() {
 int main() {
   Init();
   while (Input()) {
-//    auto start = std::chrono::high_resolution_clock::now();
     UpdateOutput();
-//      auto end = std::chrono::high_resolution_clock::now();
-//      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-//      std::cerr << "UpdateOutput time: " << duration.count() << "ms" << std::endl;
-//      if (duration.count() < 14) {
-//        std::this_thread::sleep_for(std::chrono::milliseconds(14 - duration.count()));
-//      std::cerr << "UpdateOutput time: " << duration.count() << "ms" << std::endl;
-//      }
     ShowAll();
     PrintOK();
   }
