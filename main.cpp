@@ -337,7 +337,7 @@ double GetGoodsValue(int id, int x, int y) {
   auto time_cost =
       ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 6);
   auto passed_time = (current_time - goods[id].occur_time + 2.0);
-  auto res = std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
+  auto res = std::exp(1+goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
   return res;
 }
 
@@ -399,7 +399,7 @@ namespace simulated_annealing {
 std::default_random_engine e(234);
 double Evaluate(Solution &s) {
   int value = 0;
-  int time_cost = kInf;
+  int time_cost = 0;
   for (int i = 0; i < kRobotCount; i++) {
     int temp = 0;
     int cur_time = pass_time[i];
@@ -417,9 +417,11 @@ double Evaluate(Solution &s) {
       }
     }
     value += temp;
-    time_cost = std::min(time_cost, cur_time - current_time);
+    time_cost +=cur_time - current_time;
   }
-  return 1.0 * value;
+
+//  fprintf(stderr,"E value:%d tico:%d\n",value,time_cost);
+  return 1.0 * value+1.0*value/time_cost;
 }
 
 double Probability(double dE, double T) {
@@ -427,8 +429,8 @@ double Probability(double dE, double T) {
 }
 
 void Simulate() {
-  double init_temper = 1000;
-  double cool_rate = 0.98;
+  double init_temper = 500;
+  double cool_rate = 0.95;
   double iter_times = 100;
   using namespace init_solution;
   InitSolution(best_solution);
@@ -444,12 +446,13 @@ void Simulate() {
       int type = std::uniform_int_distribution<int>(0, 1)(e);
       std::uniform_int_distribution<int> u(0, kRobotCount);
       if (type == 0) {
-
         int r1 = u(e);
         if (new_solution[r1].empty()) {
           continue;
         }
-        int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
+        auto func = [](){};
+//        int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
+        int idx1=0;
         int r2 = u(e);
         if (new_solution[r2].empty()) {
           continue;
@@ -473,8 +476,12 @@ void Simulate() {
         } else {
           idx2 = std::uniform_int_distribution<int>(0, (int) new_solution[r2].size() - 1)(e);
         }
-        new_solution[r2].insert(new_solution[r2].begin()+idx2, new_solution[r1][idx1]);
+        new_solution[r2].insert(new_solution[r2].begin() + idx2, new_solution[r1][idx1]);
         new_solution[r1].erase(new_solution[r1].begin() + idx1);
+      } else if (type== 2) {
+//        int r1=u(e);
+//        if (new_solution[r1].size()<2) continue;
+
       }
 //      fputs("TAG2", stderr);
       auto new_value = Evaluate(new_solution);
@@ -491,35 +498,35 @@ void Simulate() {
 //      fputs("TAG3", stderr);
     }
 
-    for (int _ = 0; _ < iter_times; _++) {
-//      fputs("TAG1", stderr);
-      auto new_solution = cur_solution;
-      std::uniform_int_distribution<int> u(0, kRobotCount - 1);
-      int r1 = u(e);
-      if (new_solution[r1].empty()) {
-        continue;
-      }
-      int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
-      if (std::bernoulli_distribution(0.5)(e)) {
-        continue;
-      }
-      new_solution[10].push_back(new_solution[r1][idx1]);
-      new_solution[r1].erase(new_solution[r1].begin() + idx1);
-//      fputs("TAG2", stderr);
-      auto new_value = Evaluate(new_solution);
-      auto dE = new_value - cur_value;
-      if (dE > 0 && std::uniform_real_distribution<double>(0, 1)(e) > Probability(dE, temper)) {
-        continue;
-      }
-      cur_solution = new_solution;
-      cur_value = new_value;
-      if (cur_value > best_value) {
-        best_solution = cur_solution;
-        best_value = cur_value;
-      }
-//      fputs("TAG3", stderr);
-
-    }
+//    for (int _ = 0; _ < iter_times; _++) {
+////      fputs("TAG1", stderr);
+//      auto new_solution = cur_solution;
+//      std::uniform_int_distribution<int> u(0, kRobotCount - 1);
+//      int r1 = u(e);
+//      if (new_solution[r1].empty()) {
+//        continue;
+//      }
+//      int idx1 = std::uniform_int_distribution<int>(0, (int) new_solution[r1].size() - 1)(e);
+//      if (std::bernoulli_distribution(0.5)(e)) {
+//        continue;
+//      }
+//      new_solution[10].push_back(new_solution[r1][idx1]);
+//      new_solution[r1].erase(new_solution[r1].begin() + idx1);
+////      fputs("TAG2", stderr);
+//      auto new_value = Evaluate(new_solution);
+//      auto dE = new_value - cur_value;
+//      if (dE > 0 && std::uniform_real_distribution<double>(0, 1)(e) > Probability(dE, temper)) {
+//        continue;
+//      }
+//      cur_solution = new_solution;
+//      cur_value = new_value;
+//      if (cur_value > best_value) {
+//        best_solution = cur_solution;
+//        best_value = cur_value;
+//      }
+////      fputs("TAG3", stderr);
+//
+//    }
   }
 //    fprintf(stderr, "Simulated Annealing Finished\n");
 }
