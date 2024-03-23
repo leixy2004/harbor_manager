@@ -14,7 +14,6 @@
 #include "berth.h"
 #include "goods.h"
 #include "bfs.h"
-//#include "thread_pool.h"
 std::array<Robot, kRobotCount> robot;
 Map map;
 std::array<Ship, kShipCount> ship;
