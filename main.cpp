@@ -333,7 +333,7 @@ double GetGoodsValue(int id, int x, int y) {
 //        return -1;
 //    }
   auto time_cost =
-      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 5);
+      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 3);
   auto passed_time = (current_time - goods[id].occur_time + 2.0);
   auto res = std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
 //  if (goods[id].value * 1.0 / time_cost < limit) {
@@ -669,7 +669,7 @@ void UpdateShip(int id) {
     } else if (ship[id].nowGoods < ship[id].capacity) {
       //to update
       if (berth[now].saved_goods == 0) {
-        if (ship[id].nowGoods > ship[id].capacity * 9 / 10
+        if (ship[id].nowGoods > ship[id].capacity * 8/ 10
             && current_time + 2 * berth[now].transport_time + 510 < 15000) {
           ship[id].PrintGo();
           berth[now].have_ship--;
