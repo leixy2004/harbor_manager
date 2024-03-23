@@ -95,15 +95,34 @@ void ShowAll() {
 //  last_time = t;
 //  return res;
 //}
-
+int dg=3;
+int ds=8;
 namespace init {
-
+size_t map_hash = 0;
+int map_id=3;
+const size_t kMap1Hash=11583130170516900611ULL; // hard
+const size_t KMap2Hash=5132321207364740063ULL; // normal
 void InitInputMap() {
   std::string str;
+  size_t h=0;
   for (auto &line : map.grid) {
     std::cin >> str;
+    h^=std::hash<std::string> {}(str);
     std::copy(str.begin(), str.end(), line.begin());
   }
+  map_hash = h;
+  if (map_hash==kMap1Hash) {
+    map_id = 1;
+    dg=5;
+    ds=9;
+  } else if (map_hash==KMap2Hash) {
+    dg=3;
+    ds=8;
+    map_id = 2;
+  } else {
+    map_id = 3;
+  }
+  fprintf(stderr, "map_id: %d\n", map_id);
 }
 
 void InitAllRobot() {
@@ -150,43 +169,43 @@ void InitAllBerth() {
       }
     }
   }
-  auto f = fopen("statistics.txt", "w");
-
-  for (int x = 0; x < kN; x++) {
-    for (int y = 0; y < kN; y++) {
-      if (map.berth_id[x][y] == -1) {
-        fprintf(f, " ");
-      } else {
-        fprintf(f, "%d", map.berth_id[x][y]);
-      }
-    }
-    fprintf(f, "\n");
-  }
-  fprintf(f, "\n");
-  for (int x = 0; x < kN; x++) {
-    for (int y = 0; y < kN; y++) {
-      if (map.dis[x][y] == kInf) {
-        fprintf(f, "    ");
-      } else {
-        fprintf(f, "%3d ", map.dis[x][y]);
-      }
-    }
-    fprintf(f, "\n");
-  }
-  fprintf(f, "\n");
-  for (int x = 0; x < kN; x++) {
-    for (int y = 0; y < kN; y++) {
-      if (map.pre[x][y] == kStay) {
-        fprintf(f, " ");
-      } else {
-        static const char *kDirChar = "><AV";
-        fprintf(f, "%c", kDirChar[kInverseDir[map.pre[x][y]]]);
-      }
-    }
-    fprintf(f, "\n");
-  }
-  fprintf(f, "\n");
-  fclose(f);
+//  auto f = fopen("statistics.txt", "w");
+//
+//  for (int x = 0; x < kN; x++) {
+//    for (int y = 0; y < kN; y++) {
+//      if (map.berth_id[x][y] == -1) {
+//        fprintf(f, " ");
+//      } else {
+//        fprintf(f, "%d", map.berth_id[x][y]);
+//      }
+//    }
+//    fprintf(f, "\n");
+//  }
+//  fprintf(f, "\n");
+//  for (int x = 0; x < kN; x++) {
+//    for (int y = 0; y < kN; y++) {
+//      if (map.dis[x][y] == kInf) {
+//        fprintf(f, "    ");
+//      } else {
+//        fprintf(f, "%3d ", map.dis[x][y]);
+//      }
+//    }
+//    fprintf(f, "\n");
+//  }
+//  fprintf(f, "\n");
+//  for (int x = 0; x < kN; x++) {
+//    for (int y = 0; y < kN; y++) {
+//      if (map.pre[x][y] == kStay) {
+//        fprintf(f, " ");
+//      } else {
+//        static const char *kDirChar = "><AV";
+//        fprintf(f, "%c", kDirChar[kInverseDir[map.pre[x][y]]]);
+//      }
+//    }
+//    fprintf(f, "\n");
+//  }
+//  fprintf(f, "\n");
+//  fclose(f);
 
 }
 
@@ -231,16 +250,16 @@ int near_dis = 20;
 //  }
 //}
 
-void RemoveColor(int goods_id) {
-  for (int i = 0; i < kN; i++) {
-    for (int j = 0; j < kN; j++) {
-      auto d = (*goods[goods_id].dis)[i][j];
-      if (d < near_dis) {
-        map.color[i][j] -= (near_dis - d) * goods[goods_id].value;
-      }
-    }
-  }
-}
+//void RemoveColor(int goods_id) {
+//  for (int i = 0; i < kN; i++) {
+//    for (int j = 0; j < kN; j++) {
+//      auto d = (*goods[goods_id].dis)[i][j];
+//      if (d < near_dis) {
+//        map.color[i][j] -= (near_dis - d) * goods[goods_id].value;
+//      }
+//    }
+//  }
+//}
 namespace input {
 
 void AddGoods() {
@@ -280,6 +299,7 @@ void InputRobot(int id) {
       robot[id].status = Robot::kGoingToLoad;
     }
   } else { // robot is breakdown
+    fprintf(stderr, RED("Robot %d breakdown\n"), id);
     if (carry_goods) {
       robot[id].status = Robot::kBreakdownWithGoods;
     } else { // not carry goods
@@ -326,22 +346,10 @@ bool Input() {
 namespace update_robot_goods {
 
 double GetGoodsValue(int id, int x, int y) {
-//  fprintf(stderr, "GetGoodsValue id: %d x: %d y: %d\n", id, x, y);
-//  static double limit = 0.1;
-//    if (current_time - goods[id].occur_time +(*goods[id].dis)[x][y]>= kGoodsDuration) {
-//        return -1;
-//    }
   auto time_cost =
-      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 3);
+      ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + dg);
   auto passed_time = (current_time - goods[id].occur_time + 2.0);
-  auto res = std::exp(goods[id].value * 1.0 / time_cost) * std::log(1 + passed_time / kGoodsDuration);
-//  if (goods[id].value * 1.0 / time_cost < limit) {
-//    res*=0.8;
-//  }
-//  if ((kGoodsDuration-passed_time)/(*goods[id].dis)[x][y]<1.1){
-//    res*=1.1;
-//  }
-//  fprintf(stderr, "time_cost: %lf value:%d\n", time_cost, goods[id].value);
+  auto res = std::exp(goods[id].value * 1./ time_cost) * std::log(1 + 1.0* passed_time / kGoodsDuration);
   return res;
 }
 
@@ -423,7 +431,7 @@ double GetBerthValue(int id, int x, int y) {
   if (current_time + berth[id].transport_time + 5 > 15000) {
     return -1;
   }
-  if (current_time > 12000) {
+  if (current_time > 12500) {
     return 1.0 / (berth[id].dis[x][y] + 5) * (1.0 * berth[id].saved_goods / Ship::capacity)
         / (berth[id].transport_time + 5);
   }
@@ -594,7 +602,7 @@ bool CheckMoveAndMakeValid() {
 //              }
 //            }
             if (!change) {
-              robot[j].dir = kStay;
+//              robot[j].dir = kStay;
             }
             flag = true;
           }
@@ -668,7 +676,7 @@ void UpdateShip(int id) {
     } else if (ship[id].nowGoods < ship[id].capacity) {
       //to update
       if (berth[now].saved_goods == 0) {
-        if (ship[id].nowGoods > ship[id].capacity * 8/ 10
+        if (ship[id].nowGoods > ship[id].capacity * ds/ 10
             && current_time + 2 * berth[now].transport_time + 510 < 15000) {
           ship[id].PrintGo();
           berth[now].have_ship--;
