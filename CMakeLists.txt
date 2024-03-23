@@ -20,3 +20,5 @@ add_executable(harbor_manager
         map_area.h
         goods.cpp
 )
+add_executable(test
+        test.cpp)

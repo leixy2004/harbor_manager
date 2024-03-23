@@ -103,6 +103,7 @@ int map_id=3;
 const size_t kMap1Hash=11583130170516900611ULL; // hard
 const size_t KMap2Hash=5132321207364740063ULL; // normal
 void InitInputMap() {
+
   std::string str;
   size_t h=0;
   for (auto &line : map.grid) {
@@ -124,7 +125,10 @@ void InitInputMap() {
     dg = 2.2;
     ds = 85;
   }
-  fprintf(stderr, "map_id: %d\n", map_id);
+//  auto f= fopen("dg.txt","r");
+//  fscanf(f,"%lf",&dg);
+//  fclose(f);
+//  fprintf(stderr, "map_id: %d\n", map_id);
 }
 
 void InitAllRobot() {
@@ -146,7 +150,7 @@ void InitAllBerth() {
     b.transport_time = time;
     b.loading_speed = speed;
     b.saved_goods = 0;
-    b.Show();
+//    b.Show();
     static Position area[kBerthSize * kBerthSize]{};
     for (int i = 0; i < kBerthSize; i++) {
       for (int j = 0; j < kBerthSize; j++) {
@@ -213,7 +217,7 @@ void InitAllBerth() {
 
 void InitAllShip() {
   std::cin >> Ship::capacity;
-  std::cerr << "Ship::capacity: " << Ship::capacity << std::endl;
+//  std::cerr << "Ship::capacity: " << Ship::capacity << std::endl;
   for (int i = 0; i < kShipCount; i++) {
     ship[i].id = i;
     ship[i].status = Ship::kIdle;
@@ -234,7 +238,7 @@ bool InitInput() {
 void Init() {
   using namespace init;
   if (InitInput()) {
-    std::cerr << "Init success" << std::endl;
+//    std::cerr << "Init success" << std::endl;
     PrintOK();
   } else {
     std::cerr << "Init failed" << std::endl;
@@ -268,6 +272,7 @@ void AddGoods() {
 //  fprintf(stderr, "AddGoods");
   int x, y, value;
   std::cin >> x >> y >> value;
+//  fprintf(stderr, RED("AddGoods x: %d y: %d value: %d\n"), x, y, value);
   goods[goods_added].id = goods_added;
   goods[goods_added].position = Position(x, y);
   goods[goods_added].value = value;
@@ -352,6 +357,7 @@ double GetGoodsValue(int id, int x, int y) {
       ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + dg);
   auto passed_time = (current_time - goods[id].occur_time + 2.0);
   auto res = std::exp(goods[id].value * 1./ time_cost) * std::log(1 + 1.0* passed_time / kGoodsDuration);
+  if (goods[id].value<80) res*=0.9;
   return res;
 }
 
@@ -437,7 +443,7 @@ double GetBerthValue(int id, int x, int y) {
     return 1.0 / (berth[id].dis[x][y] + 5) * (1.0 * berth[id].saved_goods / Ship::capacity)
         / (berth[id].transport_time + 5);
   }
-  return 1.0 / (berth[id].dis[x][y] + 5) * (1.5 - 1.0 * berth[id].saved_goods / Ship::capacity);
+  return std::pow(1.0 / (berth[id].dis[x][y] + 5) ,1)* (1.5 - 1.0 * berth[id].saved_goods / Ship::capacity);
 }
 
 int RobotFindBerth(int x, int y) {
@@ -456,7 +462,7 @@ int RobotFindBerth(int x, int y) {
 
 void AllocateBerthToRobot(int id) {
   int berth_id = RobotFindBerth(robot[id].position.x, robot[id].position.y);
-  //  int berth_id = id;
+//    int berth_id = id;
   if (berth_id == -1) {
     //    fprintf(stderr, "Robot %d find no berth available.\n", id);
     return;
