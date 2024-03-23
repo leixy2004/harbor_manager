@@ -113,8 +113,8 @@ void InitInputMap() {
   map_hash = h;
   if (map_hash==kMap1Hash) {
     map_id = 1;
-    dg=5;
-    ds=9;
+    dg=2;
+    ds=8;
   } else if (map_hash==KMap2Hash) {
     dg=3;
     ds=8;
@@ -431,7 +431,7 @@ double GetBerthValue(int id, int x, int y) {
   if (current_time + berth[id].transport_time + 5 > 15000) {
     return -1;
   }
-  if (current_time > 12500) {
+  if (current_time > 12000) {
     return 1.0 / (berth[id].dis[x][y] + 5) * (1.0 * berth[id].saved_goods / Ship::capacity)
         / (berth[id].transport_time + 5);
   }
