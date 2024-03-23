@@ -95,8 +95,8 @@ void ShowAll() {
 //  last_time = t;
 //  return res;
 //}
-int dg=3;
-int ds=8;
+double dg=3.0;
+int ds=80;
 namespace init {
 size_t map_hash = 0;
 int map_id=3;
@@ -113,14 +113,16 @@ void InitInputMap() {
   map_hash = h;
   if (map_hash==kMap1Hash) {
     map_id = 1;
-    dg=2;
-    ds=8;
+    dg=2.25;
+    ds=85;
   } else if (map_hash==KMap2Hash) {
-    dg=3;
-    ds=8;
+    dg=3.0;
+    ds=80;
     map_id = 2;
   } else {
     map_id = 3;
+    dg = 2.2;
+    ds = 85;
   }
   fprintf(stderr, "map_id: %d\n", map_id);
 }
@@ -676,7 +678,7 @@ void UpdateShip(int id) {
     } else if (ship[id].nowGoods < ship[id].capacity) {
       //to update
       if (berth[now].saved_goods == 0) {
-        if (ship[id].nowGoods > ship[id].capacity * ds/ 10
+        if (ship[id].nowGoods > ship[id].capacity * ds/ 100
             && current_time + 2 * berth[now].transport_time + 510 < 15000) {
           ship[id].PrintGo();
           berth[now].have_ship--;
