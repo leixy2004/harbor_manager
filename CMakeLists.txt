@@ -14,11 +14,9 @@ add_executable(harbor_manager
         position.h
         ship.cpp
         ship.h
-        bfs.cpp
         bfs.h
         map_object.h
         map_area.h
-        goods.cpp
 )
 add_executable(test
         test.cpp)

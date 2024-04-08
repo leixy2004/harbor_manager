@@ -3,4 +3,4 @@
 //
 
 #include "ship.h"
-int Ship::capacity = 0;
+

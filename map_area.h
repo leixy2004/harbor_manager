@@ -4,12 +4,11 @@
 
 #ifndef HARBOR_MANAGER__MAP_AREA_H_
 #define HARBOR_MANAGER__MAP_AREA_H_
-
-struct MapArea {
-  int id{};
-  int left{}, right{}, top{}, bottom{};
+#include "map_object.h"
+struct MapArea : MapObject {
+  int miny{}, maxy{}, minx{}, maxx{};
   [[nodiscard]] bool IsInArea(int x, int y) const {
-    return y >= left && y <= right && x >= top && x <= bottom;
+    return y >= miny && y <= maxy && x >= minx && x <= maxx;
   }
 
 };

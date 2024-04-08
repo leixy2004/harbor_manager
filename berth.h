@@ -12,22 +12,18 @@ struct Berth : MapArea {
   int transport_time{};
   int loading_speed{};
   int saved_goods{};
-  int targeting_robot{};
-  Grid dis{};
-    Grid pre{};
-  //bool have_ship[20005]{ 0 };
-  int have_ship{ 0 };
+  int have_ship{};
+  Grid dis{}, pre{};
   void Show() {
     fprintf(stderr, "Berth %d: (%d, %d, %d, %d) transport_time: %d, loading_speed: %d, saved_goods: %d\n",
             this->id,
-            this->top,
-            this->bottom,
-            this->left,
-            this->right,
+            this->minx,
+            this->maxx,
+            this->miny,
+            this->maxy,
             this->transport_time,
             this->loading_speed,
             this->saved_goods);
-
   }
 };
 

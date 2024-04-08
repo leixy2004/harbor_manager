@@ -5,8 +5,9 @@
 #ifndef HARBOR_MANAGER__SHIP_H_
 #define HARBOR_MANAGER__SHIP_H_
 #include <iostream>
+#include "map_object.h"
 #include "berth.h"
-struct Ship {
+struct Ship : MapObject {
 static int capacity;
 enum ShipStatus {
   kNone,
@@ -16,8 +17,6 @@ enum ShipStatus {
   kGoBack,
   kAtBerth,
 };
-int id{};
-int status{};
 int dir{};
 int nowGoods{};
 int nowBerth{};
