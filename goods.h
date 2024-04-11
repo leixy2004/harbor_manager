@@ -11,6 +11,7 @@
 #include <iostream>
 struct Goods : MapObject {
   enum GoodsStatus {
+    kNone=-1,
     kOnLand,
     kOnRobot,
     kOnBerth,
@@ -27,6 +28,17 @@ struct Goods : MapObject {
   int berth_id{};
   static std::allocator<Grid> grid_allocator;
   Grid *dis{},*pre{};
+  Goods()=default;
+  Goods(int id,int x,int y,int v,int t)
+  :MapObject{id,kNone,Position{x,y}},
+  value{v},
+  occur_time{t},
+  robot_id{-1},
+  berth_id{-1},
+  dis{nullptr},
+  pre{nullptr} {
+
+  }
   ~Goods() {
     DeallocateMemory();
   }
@@ -53,8 +65,10 @@ struct Goods : MapObject {
   }
 
   void Update(int new_status) {
-    monitor.status_count[status] -= 1;
-    monitor.status_value[status] -= value;
+    if (status != kNone) {
+      monitor.status_count[status] -= 1;
+      monitor.status_value[status] -= value;
+    }
     status = new_status;
     monitor.status_count[status] += 1;
     monitor.status_value[status] += value;

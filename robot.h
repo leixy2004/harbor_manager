@@ -10,17 +10,13 @@
 #include "map_object.h"
 struct Robot : MapObject {
   enum RobotStatus {
-//    kNone,
-//    kIdle,
-    kBreakdown,
-    kBreakdownWithGoods,
     kGoingToLoad,
     kGoingToUnload,
-//    kYielding
   };
   int dir{kStay};
-  int goods_id{};
-  int berth_id{};
+  int goods_id{-1};
+  int berth_id{-1};
+  Robot()=default;
   void PrintMove() {
     std::cout << "move " << this->id << " " << dir << std::endl;
   }

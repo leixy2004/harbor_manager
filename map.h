@@ -41,6 +41,7 @@ struct Map {
       {kTerminal, {kBanned, kWay}},
   };
   std::array<std::array<char, kN>, kN> char_grid{};
+
   struct SubMap {
     Grid grid{};
     bool IsReachable(int x, int y) {

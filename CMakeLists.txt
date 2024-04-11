@@ -17,6 +17,8 @@ add_executable(harbor_manager
         bfs.h
         map_object.h
         map_area.h
+        terminal.h
+        seller.h
 )
 add_executable(test
         test.cpp)

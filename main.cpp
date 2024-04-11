@@ -4,7 +4,9 @@
 #include <fstream>
 #include <array>
 #include <cmath>
+#include <unordered_map>
 //#include <list>
+#include <map>
 #include <chrono>
 //#include <format>
 #include "robot.h"
@@ -14,12 +16,18 @@
 #include "berth.h"
 #include "goods.h"
 #include "bfs.h"
+#include "seller.h"
+#include "terminal.h"
 std::allocator<Grid> Goods::grid_allocator{};
 std::vector<Robot> robot;
 Map map;
+std::vector<RobotSeller> robot_seller;
+std::vector<ShipSeller> ship_seller;
+std::vector<Terminal> terminal;
 std::vector<Ship> ship;
 std::vector<Berth> berth;
 std::vector<Goods> goods;
+std::map<Position, int> goods_map;
 int current_time = 0;
 int current_value = 0;
 int goods_added = 0;
@@ -47,14 +55,29 @@ size_t map_hash = 0;
 int map_id;
 void InitInputMap() {
   std::string str;
-  size_t h=0;
+  size_t h = 0;
   for (auto &line : map.char_grid) {
     std::cin >> str;
-    h^=std::hash<std::string> {}(str);
+    h ^= std::hash<std::string>{}(str);
     std::copy(str.begin(), str.end(), line.begin());
   }
   map_hash = h;
   map.Init();
+}
+
+void InitAllFixedObject() {
+  for (int x = 0; x < kN; x++) {
+    for (int y = 0; y < kN; y++) {
+      if (map.char_grid[x][y] == Map::kRobotSeller) {
+        robot_seller.emplace_back(robot_seller.size(), x, y);
+      } else if (map.char_grid[x][y] == Map::kShipSeller) {
+        ship_seller.emplace_back(ship_seller.size(), x, y);
+      } else if (map.char_grid[x][y] == Map::kTerminal) {
+        terminal.emplace_back(terminal.size(), x, y);
+        // TODO: Spfa or sth here
+      }
+    }
+  }
 }
 
 void InitAllBerth() {
@@ -63,37 +86,59 @@ void InitAllBerth() {
     std::cin >> id >> x >> y >> speed;
     b.id = id;
     b.minx = x;
-    while (Map::IsInMap(b.minx-1,y) && map.char_grid[b.minx-1][y] == Map::kBerth) {
-      b.minx--;
-    }
     b.miny = y;
-    while (Map::IsInMap(x,b.miny-1) && map.char_grid[x][b.miny-1] == Map::kBerth) {
-      b.miny--;
-    }
     b.maxx = x;
-    while (Map::IsInMap(b.maxx+1,y) && map.char_grid[b.maxx+1][y] == Map::kBerth) {
-      b.maxx++;
-    }
     b.maxy = y;
-    while (Map::IsInMap(x,b.maxy+1) && map.char_grid[x][b.maxy+1] == Map::kBerth) {
+    while (Map::IsInMap(b.minx - 1, y)
+        && map.char_grid[b.minx - 1][y] == Map::kBerth)
+      b.minx--;
+    while (Map::IsInMap(x, b.miny - 1)
+        && map.char_grid[x][b.miny - 1] == Map::kBerth)
+      b.miny--;
+    while (Map::IsInMap(b.maxx + 1, y)
+        && map.char_grid[b.maxx + 1][y] == Map::kBerth)
+      b.maxx++;
+    while (Map::IsInMap(x, b.maxy + 1)
+        && map.char_grid[x][b.maxy + 1] == Map::kBerth)
       b.maxy++;
-    }
+
+    b.margin.minx = b.minx - 1;
+    b.margin.miny = b.miny - 1;
+    b.margin.maxx = b.maxx + 1;
+    b.margin.maxy = b.maxy + 1;
+    while (Map::IsInMap(b.margin.minx - 1, y)
+        && map.char_grid[b.margin.minx - 1][y] == Map::kBerthMargin)
+      b.margin.minx--;
+    while (Map::IsInMap(x, b.margin.miny - 1)
+        && map.char_grid[x][b.margin.miny - 1] == Map::kBerthMargin)
+      b.margin.miny--;
+    while (Map::IsInMap(b.margin.maxx + 1, y)
+        && map.char_grid[b.margin.maxx + 1][y] == Map::kBerthMargin)
+      b.margin.maxx++;
+    while (Map::IsInMap(x, b.margin.maxy + 1)
+        && map.char_grid[x][b.margin.maxy + 1] == Map::kBerthMargin)
+      b.margin.maxy++;
+
     b.loading_speed = speed;
     b.saved_goods = 0;
-    std::vector<Position> area;
-    for (int i = b.minx; i <= b.maxx; i++) {
-      for (int j = b.miny; j <= b.maxy; j++) {
-        area.emplace_back(i, j);
-      }
-    }
-    LandBfs(area, b.dis, b.pre, map.robot.grid);
+
+    LandBfs([&]() {
+              std::vector<Position> area;
+              for (int i = b.minx; i <= b.maxx; i++) {
+                for (int j = b.miny; j <= b.maxy; j++) {
+                  area.emplace_back(i, j);
+                }
+              }
+              return area;
+            }(),
+            b.dis, b.pre, map.robot.grid);
   }
 
 }
 
-
 bool InitInput() {
   InitInputMap();
+  InitAllFixedObject();
   InitAllBerth();
   std::cin >> Ship::capacity;
   return ReadOK();
@@ -113,50 +158,55 @@ void Init() {
 
 namespace input {
 
-void UpdateGoods() {
-//  fprintf(stderr, "UpdateGoods");
+void AddGoods() {
+
+}
+
+void InputGoods() {
+//  fprintf(stderr, "InputGoods");
   int x, y, value;
   std::cin >> x >> y >> value;
+  if (value == 0) { // delete
+    auto &g = goods[goods_map[Position(x, y)]];
+    if (g.status == Goods::kOnLand) {
+      if (g.robot_id != -1 && robot[g.robot_id].goods_id == g.id) {
+        robot[g.robot_id].Refresh();
+        g.robot_id = -1;
+      }
+      g.Update(Goods::kExpired);
+    } else if (g.status == Goods::kOnRobot) {
 
-  goods[goods_added].id = goods_added;
-  goods[goods_added].position = Position(x, y);
-  goods[goods_added].value = value;
-  goods[goods_added].occur_time = current_time;
-  goods[goods_added].robot_id = -1;
-  goods[goods_added].berth_id = -1;
-  [&](Goods &g) {
+    }
+    g.DeallocateMemory();
+  } else {
+    goods.emplace_back(goods.size(), x, y, value, current_time);
+    auto &g = goods.back();
+    goods_map[g.position] = g.id;
     g.AllocateMemory();
     LandBfs({g.position}, *g.dis, *g.pre, map.robot.grid);
-    g.status = Goods::kOnLand;
-
-  }(goods[goods_added]);
-  goods_added++;
-}
-
-void InputRobot(Robot &r) {
-  int carry_goods;
-  int x, y;
-  int status;
-  std::cin >> carry_goods >> x >> y >> status;
-  r.position = Position(x, y);
-  if (status) { // robot is running
-    if (carry_goods) {
-      r.status = Robot::kGoingToUnload;
-    } else { // not carry goods
-      r.status = Robot::kGoingToLoad;
-    }
-  } else { // robot is breakdown
-    fprintf(stderr, RED("Robot %d breakdown\n"), r.id);
-    if (carry_goods) {
-      r.status = Robot::kBreakdownWithGoods;
-    } else { // not carry goods
-      r.status = Robot::kBreakdown;
-    }
+    g.Update(Goods::kOnLand);
   }
 }
-void InputShip(Ship &s) {
+
+void InputRobot() {
+  int carry_goods;
+  int id, x, y;
+  std::cin >> id >> carry_goods >> x >> y;
+  auto &r = robot[id];
+  r.position = Position(x, y);
+  if (carry_goods) {
+    r.status = Robot::kGoingToUnload;
+  } else { // not carry goods
+    r.status = Robot::kGoingToLoad;
+  }
+}
+void InputShip() {
+  int ship_id;
   int status;
   int berth_id;
+
+  std::cin >> ship_id;
+  auto &s = ship[ship_id];
   std::cin >> status >> berth_id;
   if (status == 1) {
     if (berth_id == -1) {
@@ -179,13 +229,13 @@ bool Input() {
   int temp_goods;
   std::cin >> temp_goods;
   for (int i = 0; i < temp_goods; i++) {
-    UpdateGoods();
+    InputGoods();
   }
-  for (auto &r: robot) {
-    InputRobot(r);
+  for (int _ = 0; _ < robot.size(); _++) {
+    InputRobot();
   }
-  for (auto &s: ship) {
-    InputShip(s);
+  for (int _ = 0; _ < ship.size(); _++) {
+    InputShip();
   }
   return ReadOK();
 }
@@ -196,8 +246,8 @@ double GetGoodsValue(int id, int x, int y) {
   auto time_cost =
       ((*goods[id].dis)[x][y] * 1.0 + berth[goods[id].berth_id].dis[goods[id].position.x][goods[id].position.y] + 4);
   auto passed_time = (current_time - goods[id].occur_time + 2.0);
-  auto res = std::exp(goods[id].value * 1./ time_cost) * std::log(1 + 1.0* passed_time / kGoodsDuration);
-  if (goods[id].value<80) res*=0.9;
+  auto res = std::exp(goods[id].value * 1. / time_cost) * std::log(1 + 1.0 * passed_time / kGoodsDuration);
+  if (goods[id].value < 80) res *= 0.9;
   return res;
 }
 
@@ -211,7 +261,7 @@ int RobotFindGoods(int x, int y) {
     auto &dis = *g.dis;
     if (current_time - g.occur_time + dis[x][y] >= kGoodsDuration) continue;
     double v = GetGoodsValue(g.id, x, y);
-    if (g.robot_id!=-1) {
+    if (g.robot_id != -1) {
       double old_v = GetGoodsValue(g.id, robot[g.robot_id].position.x, robot[g.robot_id].position.y);
       if (v > old_v && v > max_value) {
         goods_id = g.id;
@@ -282,7 +332,7 @@ double GetBerthValue(int id, int x, int y) {
     return 1.0 / (berth[id].dis[x][y] + 5) * (1.0 * berth[id].saved_goods / Ship::capacity)
         / (berth[id].transport_time + 5);
   }
-  return std::pow(1.0 / (berth[id].dis[x][y] + 5) ,1)* (1.5 - 1.0 * berth[id].saved_goods / Ship::capacity);
+  return std::pow(1.0 / (berth[id].dis[x][y] + 5), 1) * (1.5 - 1.0 * berth[id].saved_goods / Ship::capacity);
 }
 
 int RobotFindBerth(int x, int y) {
@@ -387,8 +437,8 @@ void UpdateRobotMoveDir(Robot &r) {
 
 bool CheckMoveAndMakeValid() {
   bool flag = false;
-  for (auto &ri: robot) {
-    for (auto &rj: robot) {
+  for (auto &ri : robot) {
+    for (auto &rj : robot) {
       if (ri.id == rj.id) continue;
       bool i_move = ri.dir != kStay;
       bool j_move = rj.dir != kStay;
@@ -443,7 +493,7 @@ bool CheckMoveAndMakeValid() {
 //              }
 //            }
             if (!change) {
-//              rj.dir = kStay;
+              rj.dir = kStay;
             }
             flag = true;
           }
@@ -517,7 +567,7 @@ void UpdateShip(int id) {
     } else if (ship[id].nowGoods < ship[id].capacity) {
       //to update
       if (berth[now].saved_goods == 0) {
-        if (ship[id].nowGoods > ship[id].capacity * 80/ 100
+        if (ship[id].nowGoods > ship[id].capacity * 80 / 100
             && current_time + 2 * berth[now].transport_time + 510 < 15000) {
           ship[id].PrintGo();
           berth[now].have_ship--;
@@ -549,36 +599,36 @@ void UpdateShip(int id) {
   }
 }
 
-void RemoveExpiredGoods() {
-  while (goods_removed < goods_added && current_time - goods[goods_removed].occur_time >= kGoodsDuration) {
-    auto &g = goods[goods_removed];
-    if (g.status == Goods::kOnLand) {
-      if (g.robot_id != -1) {
-        robot[g.robot_id].Refresh();
-      }
-      g.Update(Goods::kExpired);
-    } else if (g.status == Goods::kOnRobot) {
-//      std::cerr << "Captured Goods should not in list" << std::endl;
-    } else {
-      std::cerr << "BIG ERROR, WRONG GOODS" << std::endl;
-    }
-    g.DeallocateMemory();
-    goods_removed++;
-  }
-//  while (!goods_waiting.empty()
-//      && goods_waiting.front()->status == Goods::kExpired) {
-//    goods_waiting.pop_front();
+//void RemoveExpiredGoods() {
+//  while (goods_removed < goods_added && current_time - goods[goods_removed].occur_time >= kGoodsDuration) {
+//    auto &g = goods[goods_removed];
+//    if (g.status == Goods::kOnLand) {
+//      if (g.robot_id != -1) {
+//        robot[g.robot_id].Refresh();
+//      }
+//      g.Update(Goods::kExpired);
+//    } else if (g.status == Goods::kOnRobot) {
+////      std::cerr << "Captured Goods should not in list" << std::endl;
+//    } else {
+//      std::cerr << "BIG ERROR, WRONG GOODS" << std::endl;
+//    }
+//    g.DeallocateMemory();
+//    goods_removed++;
 //  }
-}
+////  while (!goods_waiting.empty()
+////      && goods_waiting.front()->status == Goods::kExpired) {
+////    goods_waiting.pop_front();
+////  }
+//}
 
 void UpdateOutput() {
-  RemoveExpiredGoods();
-  for (auto &r: robot) {
+//  RemoveExpiredGoods();
+  for (auto &r : robot) {
     RobotLoadAndUnload(r);
   }
   update_robot_goods::ArrangeAllRobotAndGoods();
   update_robot_berth::ArrangeAllRobotAndBerth();
-  for (auto &r: robot) {
+  for (auto &r : robot) {
     UpdateRobotMoveDir(r);
   }
   for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {

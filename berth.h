@@ -9,6 +9,7 @@
 #include "bfs.h"
 #include "map_area.h"
 struct Berth : MapArea {
+  MapArea margin{};
   int transport_time{};
   int loading_speed{};
   int saved_goods{};
