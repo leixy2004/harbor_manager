@@ -44,8 +44,8 @@ bool ReadOK() {
 
 void ShowAll() {
   fprintf(stderr, "Berth: ");
-  for (int i = 0; i < kBerthCount; i++) {
-    fprintf(stderr, "%d:%d ", i, berth[i].saved_goods);
+    for (auto &b : berth) {
+    b.Show();
   }
   fprintf(stderr, "\n");
 }
@@ -80,66 +80,70 @@ void InitAllFixedObject() {
   }
 }
 
-void InitAllBerth() {
-  for (auto &b : berth) {
-    int id, x, y, speed;
-    std::cin >> id >> x >> y >> speed;
-    b.id = id;
-    b.minx = x;
-    b.miny = y;
-    b.maxx = x;
-    b.maxy = y;
-    while (Map::IsInMap(b.minx - 1, y)
-        && map.char_grid[b.minx - 1][y] == Map::kBerth)
-      b.minx--;
-    while (Map::IsInMap(x, b.miny - 1)
-        && map.char_grid[x][b.miny - 1] == Map::kBerth)
-      b.miny--;
-    while (Map::IsInMap(b.maxx + 1, y)
-        && map.char_grid[b.maxx + 1][y] == Map::kBerth)
-      b.maxx++;
-    while (Map::IsInMap(x, b.maxy + 1)
-        && map.char_grid[x][b.maxy + 1] == Map::kBerth)
-      b.maxy++;
+void InitBerth() {
+  int id, x, y, speed;
+  std::cin >> id >> x >> y >> speed;
+  auto &b = berth[id];
+  b.id = id;
+  b.minx = x;
+  b.miny = y;
+  b.maxx = x;
+  b.maxy = y;
+  while (Map::IsInMap(b.minx - 1, y)
+      && map.char_grid[b.minx - 1][y] == Map::kBerth)
+    b.minx--;
+  while (Map::IsInMap(x, b.miny - 1)
+      && map.char_grid[x][b.miny - 1] == Map::kBerth)
+    b.miny--;
+  while (Map::IsInMap(b.maxx + 1, y)
+      && map.char_grid[b.maxx + 1][y] == Map::kBerth)
+    b.maxx++;
+  while (Map::IsInMap(x, b.maxy + 1)
+      && map.char_grid[x][b.maxy + 1] == Map::kBerth)
+    b.maxy++;
 
-    b.margin.minx = b.minx - 1;
-    b.margin.miny = b.miny - 1;
-    b.margin.maxx = b.maxx + 1;
-    b.margin.maxy = b.maxy + 1;
-    while (Map::IsInMap(b.margin.minx - 1, y)
-        && map.char_grid[b.margin.minx - 1][y] == Map::kBerthMargin)
-      b.margin.minx--;
-    while (Map::IsInMap(x, b.margin.miny - 1)
-        && map.char_grid[x][b.margin.miny - 1] == Map::kBerthMargin)
-      b.margin.miny--;
-    while (Map::IsInMap(b.margin.maxx + 1, y)
-        && map.char_grid[b.margin.maxx + 1][y] == Map::kBerthMargin)
-      b.margin.maxx++;
-    while (Map::IsInMap(x, b.margin.maxy + 1)
-        && map.char_grid[x][b.margin.maxy + 1] == Map::kBerthMargin)
-      b.margin.maxy++;
+  b.margin.minx = b.minx - 1;
+  b.margin.miny = b.miny - 1;
+  b.margin.maxx = b.maxx + 1;
+  b.margin.maxy = b.maxy + 1;
+  while (Map::IsInMap(b.margin.minx - 1, y)
+      && map.char_grid[b.margin.minx - 1][y] == Map::kBerthMargin)
+    b.margin.minx--;
+  while (Map::IsInMap(x, b.margin.miny - 1)
+      && map.char_grid[x][b.margin.miny - 1] == Map::kBerthMargin)
+    b.margin.miny--;
+  while (Map::IsInMap(b.margin.maxx + 1, y)
+      && map.char_grid[b.margin.maxx + 1][y] == Map::kBerthMargin)
+    b.margin.maxx++;
+  while (Map::IsInMap(x, b.margin.maxy + 1)
+      && map.char_grid[x][b.margin.maxy + 1] == Map::kBerthMargin)
+    b.margin.maxy++;
 
-    b.loading_speed = speed;
-    b.saved_goods = 0;
+  b.loading_speed = speed;
+  b.saved_goods = 0;
 
-    LandBfs([&]() {
-              std::vector<Position> area;
-              for (int i = b.minx; i <= b.maxx; i++) {
-                for (int j = b.miny; j <= b.maxy; j++) {
-                  area.emplace_back(i, j);
-                }
+  LandBfs([&]() {
+            std::vector<Position> area;
+            for (int i = b.minx; i <= b.maxx; i++) {
+              for (int j = b.miny; j <= b.maxy; j++) {
+                area.emplace_back(i, j);
               }
-              return area;
-            }(),
-            b.dis, b.pre, map.robot.grid);
-  }
-
+            }
+            return area;
+          }(),
+          b.dis, b.pre, map.robot.grid);
+  // TODO: Water Spfa?
 }
 
 bool InitInput() {
   InitInputMap();
   InitAllFixedObject();
-  InitAllBerth();
+  int BerthCount;
+  std::cin >> BerthCount;
+  berth.resize(BerthCount);
+  for (int i = 0; i < BerthCount; i++) {
+    InitBerth();
+  }
   std::cin >> Ship::capacity;
   return ReadOK();
 }
@@ -177,6 +181,7 @@ void InputGoods() {
     } else if (g.status == Goods::kOnRobot) {
 
     }
+    goods_map.erase(Position(x, y));
     g.DeallocateMemory();
   } else {
     goods.emplace_back(goods.size(), x, y, value, current_time);
@@ -338,11 +343,11 @@ double GetBerthValue(int id, int x, int y) {
 int RobotFindBerth(int x, int y) {
   int berth_id = -1;
   double max_value = -1;
-  for (int i = 0; i < kBerthCount; i++) {
-    if (berth[i].dis[x][y] >= kN * kN) continue;
-    double v = GetBerthValue(i, x, y);
+  for (auto &b : berth) {
+    if (b.dis[x][y] >= kN * kN) continue;
+    double v = GetBerthValue(b.id, x, y);
     if (v > max_value) {
-      berth_id = i;
+      berth_id = b.id;
       max_value = v;
     }
   }
@@ -507,17 +512,17 @@ bool CheckMoveAndMakeValid() {
 int ShipFindBerth(int id) {
   int maxBerth = 0, dir1 = -1;
   int minUp = Ship::capacity + 1, dir2 = -1;
-  for (int i = 0; i < kBerthCount; i++) {
-    //if (berth[i].have_ship[current_time+berth[i].transport_time])continue;
-    if (berth[i].have_ship && berth[i].saved_goods < 2 * Ship::capacity) continue;
-    if (berth[i].saved_goods - Ship::capacity + ship[id].nowGoods >= 0
-        && berth[i].saved_goods - Ship::capacity + ship[id].nowGoods < minUp) {
-      minUp = berth[i].saved_goods - Ship::capacity + ship[id].nowGoods;
-      dir2 = i;
+  for (auto &b : berth) {
+    //if (berth[i].have_ship[current_time+b.transport_time])continue;
+    if (b.have_ship && b.saved_goods < 2 * Ship::capacity) continue;
+    if (b.saved_goods - Ship::capacity + ship[id].nowGoods >= 0
+        && b.saved_goods - Ship::capacity + ship[id].nowGoods < minUp) {
+      minUp = b.saved_goods - Ship::capacity + ship[id].nowGoods;
+      dir2 = b.id;
     }
-    if (berth[i].saved_goods > maxBerth) {
-      maxBerth = berth[i].saved_goods;
-      dir1 = i;
+    if (b.saved_goods > maxBerth) {
+      maxBerth = b.saved_goods;
+      dir1 = b.id;
     }
   }
   if (dir2 != -1)return dir2;
