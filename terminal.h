@@ -8,7 +8,7 @@
 #include "map_object.h"
 #include "constant.h"
 struct Terminal : MapObject {
-Grid dis{}, pre{};
+Grid<int> dis{}, pre{};
 Terminal() = default;
 Terminal(int id, int x, int y) : MapObject{id, -1, Position{x, y}} {}
 };

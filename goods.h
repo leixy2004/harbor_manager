@@ -26,8 +26,8 @@ struct Goods : MapObject {
   int occur_time{};
   int robot_id{};
   int berth_id{};
-  static std::allocator<Grid> grid_allocator;
-  Grid *dis{},*pre{};
+  static std::allocator<Grid<int>> grid_allocator;
+  Grid<int> *dis{},*pre{};
   Goods()=default;
   Goods(int id,int x,int y,int v,int t)
   :MapObject{id,kNone,Position{x,y}},
@@ -75,6 +75,6 @@ struct Goods : MapObject {
   }
 };
 
-//std::allocator<Grid> Goods::grid_allocator{};
+//std::allocator<Grid<int>> Goods::grid_allocator{};
 
 #endif //HARBOR_MANAGER__GOODS_H_

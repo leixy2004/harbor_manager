@@ -18,7 +18,7 @@
 #include "bfs.h"
 #include "seller.h"
 #include "terminal.h"
-std::allocator<Grid> Goods::grid_allocator{};
+std::allocator<Grid<int>> Goods::grid_allocator{};
 std::vector<Robot> robot;
 Map map;
 std::vector<RobotSeller> robot_seller;

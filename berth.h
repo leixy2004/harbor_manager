@@ -14,7 +14,7 @@ struct Berth : MapArea {
   int loading_speed{};
   int saved_goods{};
   int have_ship{};
-  Grid dis{}, pre{};
+  Grid<int> dis{}, pre{};
   void Show() {
     fprintf(stderr, "Berth %d: (%d, %d, %d, %d) transport_time: %d, loading_speed: %d, saved_goods: %d\n",
             this->id,

@@ -27,6 +27,6 @@ enum kCellType {
 const int kTurnBack[4] = {kLeft, kRight, kDown, kUp};
 const int kTurnLeft[4] = {kUp, kDown, kLeft, kRight};
 const int kTurnRight[4] = {kDown, kUp, kRight, kLeft};
-typedef std::array<std::array<int, kN>, kN> Grid;
-typedef std::array<Grid, 4> DirGrid;
+template <typename T>
+using Grid = std::array<std::array<T, kN>, kN>;
 #endif //HARBOR_MANAGER__CONSTANT_H_

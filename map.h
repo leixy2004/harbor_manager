@@ -11,7 +11,6 @@
 #include "constant.h"
 
 struct Map {
-
   enum kObjectType {
     kLand = '.',
     kMainLand = '>',
@@ -27,30 +26,32 @@ struct Map {
     kTerminal = 'T',
   };
   std::unordered_map<char, std::pair<int, int>> kConvert = {
-      {kLand, {kEmpty, kBanned}},
-      {kMainLand, {kWay, kBanned}},
-      {kWater, {kBanned, kEmpty}},
-      {kMainWater, {kBanned, kWay}},
-      {kBarrier, {kBanned, kBanned}},
-      {kRobotSeller, {kWay, kBanned}},
-      {kShipSeller, {kBanned, kWay}},
-      {kBerth, {kWay, kWay}},
-      {kBerthMargin, {kBanned, kWay}},
-      {kCross, {kEmpty, kEmpty}},
-      {kMainCross, {kWay, kWay}},
-      {kTerminal, {kBanned, kWay}},
+    {kLand, {kEmpty, kBanned}},
+    {kMainLand, {kWay, kBanned}},
+    {kWater, {kBanned, kEmpty}},
+    {kMainWater, {kBanned, kWay}},
+    {kBarrier, {kBanned, kBanned}},
+    {kRobotSeller, {kWay, kBanned}},
+    {kShipSeller, {kBanned, kWay}},
+    {kBerth, {kWay, kWay}},
+    {kBerthMargin, {kBanned, kWay}},
+    {kCross, {kEmpty, kEmpty}},
+    {kMainCross, {kWay, kWay}},
+    {kTerminal, {kBanned, kWay}},
   };
   std::array<std::array<char, kN>, kN> char_grid{};
 
-  struct SubMap {
-    Grid grid{};
-    bool IsReachable(int x, int y) {
-      return grid[x][y] != kBanned;
-    }
-  } robot{}, ship{};
   static bool IsInMap(int x, int y) {
     return x >= 0 && x < kN && y >= 0 && y < kN;
   }
+
+  struct SubMap {
+    Grid<int> grid{};
+    bool IsReachable(int x, int y) const {
+      return IsInMap(x, y) && grid[x][y] != kBanned;
+    }
+  } robot{}, ship{};
+
   void Init() {
     for (int i = 0; i < kN; ++i) {
       for (int j = 0; j < kN; ++j) {
