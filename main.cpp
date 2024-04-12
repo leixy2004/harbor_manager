@@ -74,7 +74,7 @@ void InitAllFixedObject() {
         ship_seller.emplace_back(ship_seller.size(), x, y);
       } else if (map.char_grid[x][y] == Map::kTerminal) {
         terminal.emplace_back(terminal.size(), x, y);
-        // TODO: Spfa or sth here
+        GetShipNaviInfo(map, {terminal.back().position}, terminal.back().ship_navi);
       }
     }
   }
@@ -132,7 +132,14 @@ void InitBerth() {
             return area;
           }(),
           b.dis, b.pre, map.robot.grid);
-  // TODO: Water Spfa?
+
+
+  GetShipNaviInfo(map,[&]() {
+            std::vector<Position> dest;
+            dest.emplace_back(x, y);
+            return dest;
+          }(),berth[id].ship_navi);
+  
 }
 
 bool InitInput() {
@@ -212,11 +219,18 @@ void InputShip() {
   std::cin >> ship_id;
   auto &s = ship[ship_id];
   std::cin >> s.nowGoods >> s.position.x>>s.position.y>>s.dir>>status;
-  // TODO: update ship status
+  if(status == 1){
+    s.status = Ship::kRecover;
+  }
+  else if(status == 2){
+    s.status = Ship::kLoad;
+    s.aim = -1;
+  }
+  else{
+    if(s.status==Ship::kLoad)s.status=Ship::kNormal;
+  }
 }
-
 }
-
 bool Input() {
   using namespace input;
   std::cin >> current_time >> current_value;
@@ -241,6 +255,7 @@ bool Input() {
   }
   return ReadOK();
 }
+
 
 namespace update_robot_goods {
 
@@ -511,7 +526,7 @@ int ShipFindBerth(int id) {
   int minUp = Ship::capacity + 1, dir2 = -1;
   for (auto &b : berth) {
     //if (berth[i].have_ship[current_time+b.transport_time])continue;
-    if (b.have_ship && b.saved_goods < 2 * Ship::capacity) continue;
+    //if (b.have_ship && b.saved_goods < 2 * Ship::capacity) continue;
     if (b.saved_goods - Ship::capacity + ship[id].nowGoods >= 0
         && b.saved_goods - Ship::capacity + ship[id].nowGoods < minUp) {
       minUp = b.saved_goods - Ship::capacity + ship[id].nowGoods;
@@ -526,81 +541,80 @@ int ShipFindBerth(int id) {
   return dir1;
 }
 
+int ShipFindTerminal(int id){
+  auto &s=ship[id];
+  int minDis = kN * kN, aim = -1;
+  for (auto &t : terminal) {
+    if (t.ship_navi[s.position.x][s.position.y][s.dir].dis < minDis) {
+      minDis = t.ship_navi[s.position.x][s.position.y][s.dir].dis;
+      aim = t.id;
+    }
+  }
+  return aim;
+
+}
 void UpdateShip(int id) {
-  // TODO: update ship
-  /*fprintf(stderr,
-          "UpdateShip id: %d status %d  dir %d have %d/%d goods\n",
-          id,
-          ship[id].status,
-          ship[id].dir,
-          ship[id].nowGoods,
-          ship[id].capacity);*/
-  if (ship[id].status == Ship::kAtEnd) {
-    int dir = ShipFindBerth(id);
-    if (dir != -1) {
-      ship[id].dir = dir;
-      ship[id].PrintShip();
-      ship[id].status = Ship::kGoBack;
-      ship[id].nowGoods = 0;
-      berth[dir].have_ship++;
-      //berth[dir].have_ship[current_time + berth[dir].transport_time] = 1;
-      //fprintf(stderr, "%d\n", current_time + berth[dir].transport_time);
-      //      fprintf(stderr, "goto %d\n", dir);
-      return;
+  auto &s = ship[id];
+  if(s.status==Ship::kRecover){
+    return;
+  }
+  else if(s.status==Ship::kToTerminal){
+    auto &t=terminal[s.aim];
+    if(s.position==t.position){
+      s.status=Ship::kNormal;
+      s.aim=-1;
     }
-  } else if (ship[id].status == Ship::kAtBerth) {
-    //    fprintf(stderr, "now in %d\n", ship[id].nowBerth);
-    int now = ship[id].nowBerth;
-    //berth[now].have_ship ++;
-    if (ship[id].nowGoods == ship[id].capacity) {
-      ship[id].PrintGo();
-      berth[now].have_ship--;
-      ship[id].dir = -1;
-      ship[id].status = Ship::kGoTo;
-      //      fprintf(stderr, "goto -1\n");
-      return;
-    }
-    if (current_time + berth[now].transport_time + 2 > 15000) {
-      ship[id].PrintGo();
-      berth[now].have_ship--;
-      ship[id].dir = -1;
-      ship[id].status = Ship::kGoTo;
-      //fprintf(stderr, "goto -1\n");
-      return;
-    } else if (ship[id].nowGoods < ship[id].capacity) {
-      //to update
-      if (berth[now].saved_goods == 0) {
-        if (ship[id].nowGoods > ship[id].capacity * 80 / 100
-            && current_time + 2 * berth[now].transport_time + 510 < 15000) {
-          ship[id].PrintGo();
-          berth[now].have_ship--;
-          ship[id].dir = -1;
-          ship[id].status = Ship::kGoTo;
-          //fprintf(stderr, "goto -1\n");
-          return;
-        }
-        int dir = ShipFindBerth(id);
-        if (dir != -1 && current_time + berth[dir].transport_time + 510 <= 15000) {
-          ship[id].dir = dir;
-          ship[id].PrintShip();
-          berth[now].have_ship--;
-          berth[dir].have_ship++;
-          ship[id].status = Ship::kGoBack;
-          //          fprintf(stderr, "goto %d\n", dir);
-          return;
-        }
-      } else if (berth[now].saved_goods > 0) {
-        int goodsNum =
-            std::min(std::min(berth[now].loading_speed, berth[now].saved_goods), ship[id].capacity - ship[id].nowGoods);
-        berth[now].saved_goods -= goodsNum;
-        ship[id].nowGoods += goodsNum;
+    else{
+      int action=t.ship_navi[s.position.x][s.position.y][s.dir].action;
+      if(action==ShipNaviInfo::rot0){
+        s.PrintRot(0);
       }
-
+      else if(action==ShipNaviInfo::rot1){
+        s.PrintRot(1);
+      }
+      else if(action==ShipNaviInfo::move){
+        s.PrintShip();
+      }
     }
-  } else if (ship[id].status == Ship::kIdle) {
-
+  }
+  else if(s.status==Ship::kToBerth){
+    auto &b=berth[s.aim];
+    if(b.IsInArea(s.position.x,s.position.y)){
+      s.PrintBerth();
+    }
+    else{
+      int action=b.ship_navi[s.position.x][s.position.y][s.dir].action;
+      if(action==ShipNaviInfo::rot0){
+        s.PrintRot(0);
+      }
+      else if(action==ShipNaviInfo::rot1){
+        s.PrintRot(1);
+      }
+      else if(action==ShipNaviInfo::move){
+        s.PrintShip();
+      }
+    }
+  }
+  else if(s.status==Ship::kLoad){
+    if(s.nowGoods==Ship::capacity){
+      s.status=Ship::kNormal;
+    }
+    else{
+      return;
+    }
+  }
+  if(s.status==Ship::kNormal){
+    if(s.nowGoods==Ship::capacity){
+      s.aim=ShipFindTerminal(id);
+      s.status=Ship::kToTerminal;
+    }
+    else{
+      s.aim=ShipFindBerth(id);
+      s.status=Ship::kToBerth;
+    }
   }
 }
+
 
 //void RemoveExpiredGoods() {
 //  while (goods_removed < goods_added && current_time - goods[goods_removed].occur_time >= kGoodsDuration) {
@@ -642,19 +656,9 @@ void UpdateOutput() {
   }
 
   // TODO: update ship
-//  if (current_time == 1) {
-//    for (int i = 0; i < kShipCount; i++) {
-//      berth[i].have_ship++;
-//      ship[i].dir = i;
-//      ship[i].PrintShip();
-//      ship[i].status = Ship::kGoBack;
-//      //fprintf(stderr, "goto %d\n", i);
-//    }
-//  } else {
-//    for (int i = 0; i < kShipCount; i++) {
-//      UpdateShip(i);
-//    }
-//  }
+  for(auto &s:ship){
+    UpdateShip(s.id);
+  }
 }
 
 int main() {

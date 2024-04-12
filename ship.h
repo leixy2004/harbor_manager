@@ -10,14 +10,13 @@
 struct Ship : MapObject {
   static int capacity;
   enum ShipStatus {
-    kNone,
-    kIdle,
-    kGoTo,
-    kAtEnd,
-    kGoBack,
-    kAtBerth,
-    kAtMargin,
+    kLoad,
+    kRecover,
+    kNormal,
+    kToTerminal,
+    kToBerth,
   };
+  int aim{};
   int dir{};
   int nowGoods{};
   int nowBerth{};
