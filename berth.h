@@ -26,6 +26,7 @@ struct Berth : MapArea {
             this->loading_speed,
             this->saved_goods);
   }
+  Grid<std::array<ShipNaviInfo, 4>> ship_navi;
 };
 
 #endif //HARBOR_MANAGER__BERTH_H_
