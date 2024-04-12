@@ -212,17 +212,7 @@ void InputShip() {
   std::cin >> ship_id;
   auto &s = ship[ship_id];
   std::cin >> s.nowGoods >> s.position.x>>s.position.y>>s.dir>>status;
-  if (status == 1) {
-    if (berth_id == -1) {
-      s.status = Ship::kAtEnd;
-    } else {
-      s.status = Ship::kAtBerth;
-      s.nowBerth = berth_id;
-    }
-  } else if (status == 2) {
-    s.status = Ship::kIdle;
-  }
-
+  // TODO: update ship status
 }
 
 }
@@ -537,6 +527,7 @@ int ShipFindBerth(int id) {
 }
 
 void UpdateShip(int id) {
+  // TODO: update ship
   /*fprintf(stderr,
           "UpdateShip id: %d status %d  dir %d have %d/%d goods\n",
           id,
