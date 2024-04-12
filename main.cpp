@@ -44,7 +44,7 @@ bool ReadOK() {
 
 void ShowAll() {
   fprintf(stderr, "Berth: ");
-    for (auto &b : berth) {
+  for (auto &b : berth) {
     b.Show();
   }
   fprintf(stderr, "\n");
@@ -208,11 +208,10 @@ void InputRobot() {
 void InputShip() {
   int ship_id;
   int status;
-  int berth_id;
 
   std::cin >> ship_id;
   auto &s = ship[ship_id];
-  std::cin >> status >> berth_id;
+  std::cin >> s.nowGoods >> s.position.x>>s.position.y>>s.dir>>status;
   if (status == 1) {
     if (berth_id == -1) {
       s.status = Ship::kAtEnd;
@@ -231,13 +230,21 @@ void InputShip() {
 bool Input() {
   using namespace input;
   std::cin >> current_time >> current_value;
-  int temp_goods;
-  std::cin >> temp_goods;
-  for (int i = 0; i < temp_goods; i++) {
+  int goods_changed_count, robot_count, ship_count;
+  std::cin >> goods_changed_count;
+  for (int i = 0; i < goods_changed_count; i++) {
     InputGoods();
+  }
+  std::cin >> robot_count;
+  if (robot.size() < robot_count) {
+    robot.resize(robot_count);
   }
   for (int _ = 0; _ < robot.size(); _++) {
     InputRobot();
+  }
+  std::cin >> ship_count;
+  if (ship.size() < ship_count) {
+    ship.resize(ship_count);
   }
   for (int _ = 0; _ < ship.size(); _++) {
     InputShip();
