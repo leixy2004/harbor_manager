@@ -10,17 +10,13 @@
 #include "map_object.h"
 struct Robot : MapObject {
   enum RobotStatus {
-//    kNone,
-//    kIdle,
-    kBreakdown,
-    kBreakdownWithGoods,
     kGoingToLoad,
     kGoingToUnload,
-//    kYielding
   };
   int dir{kStay};
-  int goods_id{};
-  int berth_id{};
+  int goods_id{-1};
+  int berth_id{-1};
+  Robot()=default;
   void PrintMove() {
     std::cout << "move " << this->id << " " << dir << std::endl;
   }
@@ -36,31 +32,6 @@ struct Robot : MapObject {
     this->goods_id = -1;
     this->berth_id = -1;
   }
-//  void Update(int status) {
-//    if (status == kIdle) {
-//      this->Refresh();
-//    } else if (status == kBreakdown) {
-//        if (this->status!=kIdle && this->status!=kGoingToLoad) {
-//            fprintf(stderr, "Robot %d is (not idle) breakdown?\n", this->id);
-//        }
-//      this->status = kBreakdown;
-//    } else if (status == kBreakdownWithGoods) {
-//      if (this->status!=kGoingToUnload) {
-//        fprintf(stderr, "Robot %d is not unloading?\n", this->id);
-//      }
-//      this->status = kBreakdownWithGoods;
-//    } else if (status == kGoingToLoad) {
-//      if (this->status!=kIdle) {
-//        fprintf(stderr, "Robot %d is (not idle) recover?\n", this->id);
-//      }
-//      this->status = kGoingToLoad;
-//    } else if (status == kGoingToUnload) {
-//        if (this->status!=kGoingToLoad) {
-//            fprintf(stderr, "Robot %d is not loaded?\n", this->id);
-//        }
-//      this->status = kGoingToUnload;
-//    }
-//  }
   void Show() {
     fprintf(stderr,
             "Robot %d: (%d, %d) status: %d, goods_id: %d, berth_id: %d dir:%d\n",

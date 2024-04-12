@@ -11,27 +11,34 @@
 #include <iostream>
 struct Goods : MapObject {
   enum GoodsStatus {
-    kNone,
-    kWaiting,
-    kTargeted,
-    kCaptured,
-//    kOnBerth,
-//    kOnShip,
-//    kSold,
+    kNone=-1,
+    kOnLand,
+    kOnRobot,
+    kOnBerth,
+    kOnShip,
     kExpired,
   };
+  static struct Monitor {
+    std::array<int,3> status_count{};
+    std::array<int,3> status_value{};
+  } monitor;
   int value{};
   int occur_time{};
   int robot_id{};
   int berth_id{};
-  Grid *dis{};
-  Grid *pre{};
-  static std::allocator<Grid> grid_allocator;
-  Goods() = default;
-  Goods(int x, int y, int value, int occur_time) : MapObject(x, y), value(value), occur_time(occur_time) {}
-  Goods(int x, int y, int id, int status, int value, int occur_time) : MapObject(x, y, id, status),
-                                                                       value(value),
-                                                                       occur_time(occur_time) {}
+  static std::allocator<Grid<int>> grid_allocator;
+  Grid<int> *dis{},*pre{};
+  Goods()=default;
+  Goods(int id,int x,int y,int v,int t)
+  :MapObject{id,kNone,Position{x,y}},
+  value{v},
+  occur_time{t},
+  robot_id{-1},
+  berth_id{-1},
+  dis{nullptr},
+  pre{nullptr} {
+
+  }
   ~Goods() {
     DeallocateMemory();
   }
@@ -56,32 +63,18 @@ struct Goods : MapObject {
       this->pre = nullptr;
     }
   }
-//  void Update(int status) {
-//    if (status == kNone) {
-//      this->status = status;
-//    } else if (status == kWaiting) {
-//      if (this->dis == nullptr || this->pre == nullptr) {
-//        std::cerr<<"Goods Error: dis or pre is nullptr"<<std::endl;
-//        Update(kNone);
-//      } else {
-//        this->status = status;
-//      }
-//    } else if (status == kTargeted) {
-//      if (this->dis == nullptr || this->pre == nullptr) {
-//        Update(kNone);
-//      } else {
-//        this->status = status;
-//      }
-//    } else if (status == kCaptured) {
-//      DeallocateMemory();
-//      this->status = status;
-//    } else if (status == kExpired) {
-//      DeallocateMemory();
-//        this->status = status;
-//    }
-//  }
+
+  void Update(int new_status) {
+    if (status != kNone) {
+      monitor.status_count[status] -= 1;
+      monitor.status_value[status] -= value;
+    }
+    status = new_status;
+    monitor.status_count[status] += 1;
+    monitor.status_value[status] += value;
+  }
 };
 
-//std::allocator<Grid> Goods::grid_allocator{};
+//std::allocator<Grid<int>> Goods::grid_allocator{};
 
 #endif //HARBOR_MANAGER__GOODS_H_

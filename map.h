@@ -4,33 +4,61 @@
 
 #ifndef HARBOR_MANAGER__MAP_H_
 #define HARBOR_MANAGER__MAP_H_
+#include <vector>
+#include <map>
+#include <unordered_map>
 #include "position.h"
 #include "constant.h"
 
 struct Map {
-  std::array<std::array<char, kN>, kN> grid{};
-  Grid dis{};
-  Grid pre{};
-  Grid berth_id{};
-  Grid color{};
-//  void Init() {
-//    for (int i = 0; i < kN; i++) {
-//      for (int j = 0; j < kN; j++) {
-//        dis[i][j] = kInf;
-//        pre[i][j] = -1;
-//      }
-//    }
-//  }
+  enum kObjectType {
+    kLand = '.',
+    kMainLand = '>',
+    kWater = '*',
+    kMainWater = '~',
+    kBarrier = '#',
+    kRobotSeller = 'R',
+    kShipSeller = 'S',
+    kBerth = 'B',
+    kBerthMargin = 'K',
+    kCross = 'C',
+    kMainCross = 'c',
+    kTerminal = 'T',
+  };
+  std::unordered_map<char, std::pair<int, int>> kConvert = {
+    {kLand, {kEmpty, kBanned}},
+    {kMainLand, {kWay, kBanned}},
+    {kWater, {kBanned, kEmpty}},
+    {kMainWater, {kBanned, kWay}},
+    {kBarrier, {kBanned, kBanned}},
+    {kRobotSeller, {kWay, kBanned}},
+    {kShipSeller, {kBanned, kWay}},
+    {kBerth, {kWay, kWay}},
+    {kBerthMargin, {kBanned, kWay}},
+    {kCross, {kEmpty, kEmpty}},
+    {kMainCross, {kWay, kWay}},
+    {kTerminal, {kBanned, kWay}},
+  };
+  std::array<std::array<char, kN>, kN> char_grid{};
+
   static bool IsInMap(int x, int y) {
     return x >= 0 && x < kN && y >= 0 && y < kN;
   }
-  [[nodiscard]] bool IsEmpty(int x, int y) const {
-    return IsInMap(x, y) && (
-        grid[x][y] == '.' || grid[x][y] == 'A' || grid[x][y] == 'B'
-    );
-  }
-  [[nodiscard]] bool IsEmpty(const Position &pos) const {
-    return IsEmpty(pos.x, pos.y);
+
+  struct SubMap {
+    Grid<int> grid{};
+    bool IsReachable(int x, int y) const {
+      return IsInMap(x, y) && grid[x][y] != kBanned;
+    }
+  } robot{}, ship{};
+
+  void Init() {
+    for (int i = 0; i < kN; ++i) {
+      for (int j = 0; j < kN; ++j) {
+        char c = char_grid[i][j];
+        std::tie(robot.grid[i][j], ship.grid[i][j]) = kConvert[c];
+      }
+    }
   }
 };
 

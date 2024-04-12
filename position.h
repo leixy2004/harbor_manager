@@ -28,6 +28,7 @@ struct Position : Vector {
     return x == pos.x ? y < pos.y : x < pos.x;
   };
   [[nodiscard]] Position Move(int dir) const {
+    if (dir == kStay) return *this;
     return *this + kDirVec[dir];
   };
   [[nodiscard]] int Distance(const Position &pos) const {
