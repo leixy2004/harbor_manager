@@ -146,16 +146,16 @@ void InitBerth() {
 
 bool InitInput() {
   InitInputMap();
-  fprintf(stderr,"map init\n");
+//  fprintf(stderr,"map init\n");
   InitAllFixedObject();
-  fprintf(stderr,"obj init\n");
+//  fprintf(stderr,"obj init\n");
   int BerthCount;
   std::cin >> BerthCount;
   berth.resize(BerthCount);
   for (int i = 0; i < BerthCount; i++) {
     InitBerth();
   }
-  fprintf(stderr,"berth init\n");
+//  fprintf(stderr,"berth init\n");
   std::cin >> Ship::capacity;
   return ReadOK();
 }
@@ -179,10 +179,10 @@ void AddGoods() {
 }
 
 void InputGoods() {
-  fprintf(stderr, "InputGoods");
+//  fprintf(stderr, "InputGoods");
   int x, y, value;
   std::cin >> x >> y >> value;
-  fprintf(stderr, "Goods: (%d, %d) value: %d\n", x, y, value);
+//  fprintf(stderr, "Goods: (%d, %d) value: %d\n", x, y, value);
   if (value == 0) { // delete
     auto &g = goods[goods_map[Position(x, y)]];
     if (g.status == Goods::kOnLand) {
@@ -197,21 +197,21 @@ void InputGoods() {
     goods_map.erase(Position(x, y));
     g.DeallocateMemory();
   } else {
-    fprintf(stderr, "0:Goods: (%d, %d) value: %d\n", x, y, value);
+//    fprintf(stderr, "0:Goods: (%d, %d) value: %d\n", x, y, value);
     goods.emplace_back(goods.size(), x, y, value, current_time);
-    fprintf(stderr, "1:Goods %d: (%d, %d) value: %d\n", goods.back().id, x, y, value);
+//    fprintf(stderr, "1:Goods %d: (%d, %d) value: %d\n", goods.back().id, x, y, value);
     auto &g = goods.back();
-    fprintf(stderr, "Goods %d: (%d, %d) value: %d\n", g.id, x, y, value);
+//    fprintf(stderr, "Goods %d: (%d, %d) value: %d\n", g.id, x, y, value);
     goods_map[g.position] = g.id;
     g.AllocateMemory();
-//    LandBfs({g.position}, *g.dis, *g.pre, map.robot.grid);
-    fprintf(stderr, "BFS:Goods %d: (%d, %d) value: %d\n", g.id, x, y, value);
+    LandBfs({g.position}, *g.dis, *g.pre, map.robot.grid);
+//    fprintf(stderr, "BFS:Goods %d: (%d, %d) value: %d\n", g.id, x, y, value);
     g.Update(Goods::kOnLand);
   }
 }
 
 void InputRobot() {
-  fprintf(stderr, "InputRobot");
+//  fprintf(stderr, "InputRobot");
   int carry_goods;
   int id, x, y;
   std::cin >> id >> carry_goods >> x >> y;
@@ -224,7 +224,7 @@ void InputRobot() {
   }
 }
 void InputShip() {
-  fprintf(stderr, "InputShip");
+//  fprintf(stderr, "InputShip");
 
   int ship_id;
   int status;
@@ -252,7 +252,7 @@ bool Input() {
   for (int i = 0; i < goods_changed_count; i++) {
     InputGoods();
   }
-  fprintf(stderr,"finished ImportGoods\n");
+//  fprintf(stderr,"finished ImportGoods\n");
   std::cin >> robot_count;
   if (robot.size() < robot_count) {
     robot.resize(robot_count);
@@ -260,7 +260,7 @@ bool Input() {
   for (int _ = 0; _ < robot.size(); _++) {
     InputRobot();
   }
-    fprintf(stderr,"finished ImportRobot\n");
+//    fprintf(stderr,"finished ImportRobot\n");
   std::cin >> ship_count;
   if (ship.size() < ship_count) {
     ship.resize(ship_count);
@@ -268,7 +268,7 @@ bool Input() {
   for (int _ = 0; _ < ship.size(); _++) {
     InputShip();
   }
-    fprintf(stderr,"finished ImportShip\n");
+//    fprintf(stderr,"finished ImportShip\n");
 
   return ReadOK();
 }
@@ -494,6 +494,12 @@ bool CheckMoveAndMakeValid() {
       if (ri.id == rj.id) continue;
       bool i_move = ri.dir != kStay;
       bool j_move = rj.dir != kStay;
+      if (map.robot.grid[ri.position.x][ri.position.y] == kWay) {
+        i_move = false;
+      }
+        if (map.robot.grid[rj.position.x][rj.position.y] == kWay) {
+            j_move = false;
+        }
       static const int *kTurn[3] = {kTurnRight, kTurnLeft, kTurnBack};
       if (!i_move && !j_move) continue;
       if (i_move && j_move) {
@@ -678,28 +684,28 @@ void UpdateOutput() {
   for (auto &r : robot) {
     RobotLoadAndUnload(r);
   }
-  fprintf(stderr,"load un\n");
+//  fprintf(stderr,"load un\n");
   update_robot_goods::ArrangeAllRobotAndGoods();
-  fprintf(stderr,"ro go un\n");
+//  fprintf(stderr,"ro go un\n");
   update_robot_berth::ArrangeAllRobotAndBerth();
-  fprintf(stderr,"ro ber un\n");
+//  fprintf(stderr,"ro ber un\n");
 
   for (auto &r : robot) {
     UpdateRobotMoveDir(r);
   }
-  fprintf(stderr,"mv ber un\n");
+//  fprintf(stderr,"mv ber un\n");
 
   for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {
 //    fprintf(stderr, RED("CheckMoveAndMakeValid\n"));
   }
-  fprintf(stderr,"checkun\n");
+//  fprintf(stderr,"checkun\n");
 
   for (auto &i : robot) {
     if (i.dir != kStay) i.PrintMove();
   }
-  fprintf(stderr,"pmv");
+//  fprintf(stderr,"pmv");
   BuyRobot(100,100);
-  fprintf(stderr,"buyr");
+//  fprintf(stderr,"buyr");
 
   // TODO: update ship
   for(auto &s:ship){
