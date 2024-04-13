@@ -11,6 +11,9 @@ const int kInf = 0x3f3f3f3f;
 const int kN = 200;
 const int kGameDuration = 15000;
 const int kGoodsDuration = 1000;
+const int kRobotPrice=2000;
+const int kShipPrice=8000;
+
 const Vector kDirVec[4] = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
 enum kDirection {
   kStay = -1,

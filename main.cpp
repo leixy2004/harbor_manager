@@ -335,6 +335,24 @@ void ArrangeAllRobotAndGoods() {
 }
 
 }
+void BuyRobot(int x,int y) {
+  int id=-1;
+  for (auto s:robot_seller) {
+    if (id==-1 || s.position.Distance({x,y})<robot_seller[id].position.Distance({x,y})) {
+      id=s.id;
+    }
+  }
+  robot_seller[id].PrintBuy();
+}
+void BuyShip(int x,int y) {
+  int id=-1;
+  for (auto s:ship_seller) {
+    if (id==-1 || s.position.Distance({x,y})<ship_seller[id].position.Distance({x,y})) {
+      id=s.id;
+    }
+  }
+  ship_seller[id].PrintBuy();
+}
 
 namespace update_robot_berth {
 
@@ -656,11 +674,12 @@ void UpdateOutput() {
   for (auto &i : robot) {
     if (i.dir != kStay) i.PrintMove();
   }
-
+  BuyRobot(100,100);
   // TODO: update ship
   for(auto &s:ship){
     UpdateShip(s.id);
   }
+  BuyShip(100,100);
 }
 
 int main() {
