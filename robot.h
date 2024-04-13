@@ -17,6 +17,9 @@ struct Robot : MapObject {
   int goods_id{-1};
   int berth_id{-1};
   Robot()=default;
+    Robot(int id,int x,int y) : MapObject{id,kGoingToLoad,Position{x,y}} {
+
+    }
   void PrintMove() {
     std::cout << "move " << this->id << " " << dir << std::endl;
   }

@@ -16,7 +16,7 @@ struct RobotSeller : Seller {
   RobotSeller() = default;
   RobotSeller(int id, int x, int y) : Seller{id, x, y} {}
   void PrintBuy() override {
-    std::cout << "lbot " << position.x << " " << position.y << " "<<  1 <<std::endl;
+    std::cout << "lbot " << position.x << " " << position.y << " "<<  0 <<std::endl;
   }
 };
 

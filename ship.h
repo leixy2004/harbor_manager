@@ -20,6 +20,8 @@ struct Ship : MapObject {
   int dir{};
   int nowGoods{};
   int nowBerth{};
+  Ship() = default;
+    Ship(int id, int x, int y) : MapObject{id, kNormal, Position{x, y}} {}
   void PrintShip() const {
     std::cout << "ship " << this->id << std::endl;
   }

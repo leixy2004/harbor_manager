@@ -49,6 +49,12 @@ void ShowAll() {
   for (auto &b : berth) {
     b.Show();
   }
+  for (auto &r : robot) {
+    r.Show();
+  }
+  for (auto &g : goods) {
+    g.Show();
+  }
   fprintf(stderr, "\n");
 }
 
@@ -146,16 +152,16 @@ void InitBerth() {
 
 bool InitInput() {
   InitInputMap();
-//  fprintf(stderr,"map init\n");
+  fprintf(stderr,"map init\n");
   InitAllFixedObject();
-//  fprintf(stderr,"obj init\n");
+  fprintf(stderr,"obj init\n");
   int BerthCount;
   std::cin >> BerthCount;
   berth.resize(BerthCount);
   for (int i = 0; i < BerthCount; i++) {
     InitBerth();
   }
-//  fprintf(stderr,"berth init\n");
+  fprintf(stderr,"berth init\n");
   std::cin >> Ship::capacity;
   return ReadOK();
 }
@@ -174,16 +180,13 @@ void Init() {
 
 namespace input {
 
-void AddGoods() {
-
-}
-
 void InputGoods() {
-//  fprintf(stderr, "InputGoods");
+  fprintf(stderr, "InputGoods\n");
   int x, y, value;
   std::cin >> x >> y >> value;
 //  fprintf(stderr, "Goods: (%d, %d) value: %d\n", x, y, value);
   if (value == 0) { // delete
+    fprintf(stderr,"DeleteGoods\n");
     auto &g = goods[goods_map[Position(x, y)]];
     if (g.status == Goods::kOnLand) {
       if (g.robot_id != -1 && robot[g.robot_id].goods_id == g.id) {
@@ -198,20 +201,35 @@ void InputGoods() {
     g.DeallocateMemory();
   } else {
 //    fprintf(stderr, "0:Goods: (%d, %d) value: %d\n", x, y, value);
+    fprintf(stderr,"Tag1 : AddGoods\n");
     goods.emplace_back(goods.size(), x, y, value, current_time);
+    fprintf(stderr,"Tag2 : AddGoods\n");
+
 //    fprintf(stderr, "1:Goods %d: (%d, %d) value: %d\n", goods.back().id, x, y, value);
     auto &g = goods.back();
+    fprintf(stderr,"Tag3 : AddGoods\n");
+
 //    fprintf(stderr, "Goods %d: (%d, %d) value: %d\n", g.id, x, y, value);
     goods_map[g.position] = g.id;
+    fprintf(stderr,"Tag4 : AddGoods\n");
+
     g.AllocateMemory();
+    fprintf(stderr,"Tag5 : AddGoods\n");
+
+    if (g.dis==nullptr) {
+      fprintf(stderr, "AllocateMemory failed\n");
+    }
     LandBfs({g.position}, *g.dis, *g.pre, map.robot.grid);
+    fprintf(stderr,"Tag6 : AddGoods\n");
+
 //    fprintf(stderr, "BFS:Goods %d: (%d, %d) value: %d\n", g.id, x, y, value);
     g.Update(Goods::kOnLand);
+    fprintf(stderr,"Tag7 : AddGoods\n");
   }
 }
 
 void InputRobot() {
-//  fprintf(stderr, "InputRobot");
+  fprintf(stderr, "InputRobot");
   int carry_goods;
   int id, x, y;
   std::cin >> id >> carry_goods >> x >> y;
@@ -224,7 +242,7 @@ void InputRobot() {
   }
 }
 void InputShip() {
-//  fprintf(stderr, "InputShip");
+  fprintf(stderr, "InputShip");
 
   int ship_id;
   int status;
@@ -252,7 +270,7 @@ bool Input() {
   for (int i = 0; i < goods_changed_count; i++) {
     InputGoods();
   }
-//  fprintf(stderr,"finished ImportGoods\n");
+  fprintf(stderr,"finished ImportGoods\n");
   std::cin >> robot_count;
   if (robot.size() < robot_count) {
     robot.resize(robot_count);
@@ -260,7 +278,7 @@ bool Input() {
   for (int _ = 0; _ < robot.size(); _++) {
     InputRobot();
   }
-//    fprintf(stderr,"finished ImportRobot\n");
+    fprintf(stderr,"finished ImportRobot\n");
   std::cin >> ship_count;
   if (ship.size() < ship_count) {
     ship.resize(ship_count);
@@ -268,7 +286,7 @@ bool Input() {
   for (int _ = 0; _ < ship.size(); _++) {
     InputShip();
   }
-//    fprintf(stderr,"finished ImportShip\n");
+    fprintf(stderr,"finished ImportShip\n");
 
   return ReadOK();
 }
@@ -357,7 +375,12 @@ void BuyRobot(int x,int y) {
       id=s.id;
     }
   }
+  if (current_value<kRobotPrice) {
+    return;
+  }
+  current_value-=kRobotPrice;
   robot_seller[id].PrintBuy();
+  robot.emplace_back(robot.size(),robot_seller[id].position.x,robot_seller[id].position.y);
 }
 void BuyShip(int x,int y) {
   int id=-1;
@@ -366,7 +389,12 @@ void BuyShip(int x,int y) {
       id=s.id;
     }
   }
+  if (current_value<kShipPrice) {
+    return;
+  }
+  current_value-=kShipPrice;
   ship_seller[id].PrintBuy();
+  ship.emplace_back(ship.size(),ship_seller[id].position.x,ship_seller[id].position.y);
 }
 
 namespace update_robot_berth {
@@ -680,31 +708,39 @@ void UpdateShip(int id) {
 //}
 
 void UpdateOutput() {
+  fprintf(stderr, "current_time: %d\n", current_time);
 //  RemoveExpiredGoods();
   for (auto &r : robot) {
     RobotLoadAndUnload(r);
   }
+  fprintf(stderr,"Finished RobotLoadAndUnload\n");
 //  fprintf(stderr,"load un\n");
   update_robot_goods::ArrangeAllRobotAndGoods();
+  fprintf(stderr,"Finished ArrangeAllRobotAndGoods\n");
 //  fprintf(stderr,"ro go un\n");
   update_robot_berth::ArrangeAllRobotAndBerth();
+    fprintf(stderr,"Finished ArrangeAllRobotAndBerth\n");
 //  fprintf(stderr,"ro ber un\n");
 
   for (auto &r : robot) {
     UpdateRobotMoveDir(r);
   }
+  fprintf(stderr,"Finished UpdateRobotMoveDir\n");
 //  fprintf(stderr,"mv ber un\n");
 
   for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {
 //    fprintf(stderr, RED("CheckMoveAndMakeValid\n"));
   }
+  fprintf(stderr,"Finished CheckMoveAndMakeValid\n");
 //  fprintf(stderr,"checkun\n");
 
   for (auto &i : robot) {
     if (i.dir != kStay) i.PrintMove();
   }
+    fprintf(stderr,"Finished PrintMove\n");
 //  fprintf(stderr,"pmv");
   BuyRobot(100,100);
+    fprintf(stderr,"Finished BuyRobot\n");
 //  fprintf(stderr,"buyr");
 
   // TODO: update ship
@@ -726,7 +762,7 @@ int main() {
 //        std::this_thread::sleep_for(std::chrono::milliseconds(14 - duration.count()));
 //      std::cerr << "UpdateOutput time: " << duration.count() << "ms" << std::endl;
 //      }
-//    ShowAll();
+    ShowAll();
     PrintOK();
   }
 //  }

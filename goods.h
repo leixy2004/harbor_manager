@@ -39,9 +39,7 @@ struct Goods : MapObject {
   pre{nullptr} {
 
   }
-  ~Goods() {
-    DeallocateMemory();
-  }
+  ~Goods()=default;
   void AllocateMemory() {
 //    if (this->dis != nullptr || this->pre != nullptr) {
 //      DeallocateMemory();
@@ -72,6 +70,20 @@ struct Goods : MapObject {
     status = new_status;
     monitor.status_count[status] += 1;
     monitor.status_value[status] += value;
+  }
+
+  void Show() {
+    fprintf(stderr,
+            "Goods %d: (%d, %d) status: %d, value: %d, occur_time: %d, robot_id: %d, berth_id: %d\n",
+            this->id,
+            this->position.x,
+            this->position.y,
+            this->status,
+            this->value,
+            this->occur_time,
+            this->robot_id,
+            this->berth_id);
+
   }
 };
 
