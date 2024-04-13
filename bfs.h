@@ -46,6 +46,8 @@ inline void LandBfs(const std::vector<Position> &pos_origin, Grid<int> &dis, Gri
         pos_queue.pop();
         for (int dir = 0; dir < 4; dir++) {
             Position new_pos = pos.Move(dir);
+            if (!new_pos.IsInMap())
+                continue;
             int &nx = new_pos.x;
             int &ny = new_pos.y;
             if (map[nx][ny]!=kBanned && dis[nx][ny] == kInf) {

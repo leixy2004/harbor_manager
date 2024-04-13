@@ -1,6 +1,7 @@
 #include <iostream>
 //#include <cstdio>
 #include <algorithm>
+#include <iomanip>
 #include <fstream>
 #include <array>
 #include <cmath>
@@ -87,6 +88,7 @@ void InitAllFixedObject() {
     }
   }
 }
+std::ofstream file("D:\\Downloads\\WindowsRelease\\mapout.txt");
 
 void InitBerth() {
   int id, x, y, speed;
@@ -97,6 +99,7 @@ void InitBerth() {
   b.miny = y;
   b.maxx = x;
   b.maxy = y;
+  file<<"Berth"<<b.id<<std::endl;
   while (Map::IsInMap(b.minx - 1, y)
       && map.char_grid[b.minx - 1][y] == Map::kBerth)
     b.minx--;
@@ -147,7 +150,20 @@ void InitBerth() {
             dest.emplace_back(x, y);
             return dest;
           }(),berth[id].ship_navi);
-  
+  for (int i=0;i<kN;i++) {
+    for (int j=0;j<kN;j++) {
+      file<<std::setw(3)<<b.dis[i][j]%1000<<" ";
+    }
+    file<<std::endl;
+  }
+  file<<std::endl;
+  for (int i=0;i<kN;i++) {
+    for (int j=0;j<kN;j++) {
+      file<<b.pre[i][j]<<" ";
+    }
+    file<<std::endl;
+  }
+  file<<std::endl;
 }
 
 bool InitInput() {
@@ -172,6 +188,7 @@ void Init() {
   using namespace init;
   if (InitInput()) {
 //    std::cerr << "Init success" << std::endl;
+file.close();
     PrintOK();
   } else {
     std::cerr << "Init failed" << std::endl;
@@ -460,6 +477,15 @@ void RobotLoadAndUnload(Robot &r) {
     if (r.goods_id == -1) {
       return;
     }
+    if (goods[r.goods_id].status != Goods::kOnLand) {
+      fprintf(stderr, RED("Robot %d find no goods there.\n"), r.id);
+      r.Refresh();
+      return;
+    }
+    if (goods[r.goods_id].pre==nullptr) {
+      fprintf(stderr, "goods[%d].pre==nullptr\n", r.goods_id);
+      return;
+    }
     if ((*goods[r.goods_id].pre)[x][y] == kStay) { // load
       if (r.position != goods[r.goods_id].position
           || goods[r.goods_id].status != Goods::kOnLand) {
@@ -472,7 +498,7 @@ void RobotLoadAndUnload(Robot &r) {
     }
   } else if (r.status == Robot::kGoingToUnload) {
     if (r.berth_id == -1) {
-//      fprintf(stderr, "robot:%d berth_id == -1\n", id);
+      fprintf(stderr, "robot:%d berth_id == -1\n", r.id);
       return;
     }
     if (berth[r.berth_id].pre[x][y] == kStay) {
@@ -744,9 +770,9 @@ void UpdateOutput() {
 //  fprintf(stderr,"buyr");
 
   // TODO: update ship
-  for(auto &s:ship){
-    UpdateShip(s.id);
-  }
+//  for(auto &s:ship){
+//    UpdateShip(s.id);
+//  }
   BuyShip(100,100);
 }
 
@@ -762,7 +788,7 @@ int main() {
 //        std::this_thread::sleep_for(std::chrono::milliseconds(14 - duration.count()));
 //      std::cerr << "UpdateOutput time: " << duration.count() << "ms" << std::endl;
 //      }
-    ShowAll();
+//    ShowAll();
     PrintOK();
   }
 //  }
