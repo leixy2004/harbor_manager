@@ -19,8 +19,8 @@ struct Goods : MapObject {
     kExpired,
   };
   static struct Monitor {
-    std::array<int,3> status_count{};
-    std::array<int,3> status_value{};
+    std::array<int,6> status_count{};
+    std::array<int,6> status_value{};
   } monitor;
   int value{};
   int occur_time{};
@@ -40,7 +40,7 @@ struct Goods : MapObject {
 
   }
   ~Goods() {
-    DeallocateMemory();
+    //DeallocateMemory();
   }
   void AllocateMemory() {
 //    if (this->dis != nullptr || this->pre != nullptr) {
