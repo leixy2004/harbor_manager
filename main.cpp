@@ -146,13 +146,16 @@ void InitBerth() {
 
 bool InitInput() {
   InitInputMap();
+  fprintf(stderr,"map init\n");
   InitAllFixedObject();
+  fprintf(stderr,"obj init\n");
   int BerthCount;
   std::cin >> BerthCount;
   berth.resize(BerthCount);
   for (int i = 0; i < BerthCount; i++) {
     InitBerth();
   }
+  fprintf(stderr,"berth init\n");
   std::cin >> Ship::capacity;
   return ReadOK();
 }
@@ -663,17 +666,26 @@ void UpdateOutput() {
   for (auto &r : robot) {
     RobotLoadAndUnload(r);
   }
+  fprintf(stderr,"load un\n");
   update_robot_goods::ArrangeAllRobotAndGoods();
+  fprintf(stderr,"ro go un\n");
   update_robot_berth::ArrangeAllRobotAndBerth();
+  fprintf(stderr,"ro ber un\n");
+
   for (auto &r : robot) {
     UpdateRobotMoveDir(r);
   }
+  fprintf(stderr,"mv ber un\n");
+
   for (int cnt = 0; cnt < 100 && CheckMoveAndMakeValid(); cnt++) {
 //    fprintf(stderr, RED("CheckMoveAndMakeValid\n"));
   }
+  fprintf(stderr,"checkun\n");
+
   for (auto &i : robot) {
     if (i.dir != kStay) i.PrintMove();
   }
+  fprintf(stderr,"pmv");
   BuyRobot(100,100);
   // TODO: update ship
   for(auto &s:ship){
