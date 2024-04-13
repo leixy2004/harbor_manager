@@ -513,7 +513,7 @@ void RobotLoadAndUnload(Robot &r) {
       }
       r.PrintUnload();
       berth[r.berth_id].saved_goods++;
-      goods[r.goods_id].Update(Goods::kOnBerth);
+//      goods[r.goods_id].Update(Goods::kOnBerth);
       r.Refresh();
     }
   }
@@ -775,9 +775,9 @@ void UpdateOutput() {
 //  fprintf(stderr,"buyr");
   fflush(stderr);
   // TODO: update ship
-//  for(auto &s:ship){
-//    UpdateShip(s.id);
-//  }
+  for(auto &s:ship){
+    UpdateShip(s.id);
+  }
   BuyShip(100,100);
 }
 
