@@ -24,7 +24,7 @@ struct ShipNaviInfo {
     } action;
 };
 
-void LandBfs(const std::vector<Position> &pos_origin, Grid<int> &dis, Grid<int> &pre, const Grid<int> &map) {
+inline void LandBfs(const std::vector<Position> &pos_origin, Grid<int> &dis, Grid<int> &pre, const Grid<int> &map) {
     static std::queue<Position> pos_queue;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
@@ -57,7 +57,7 @@ void LandBfs(const std::vector<Position> &pos_origin, Grid<int> &dis, Grid<int> 
     }
 }
 
-void GetShipNaviInfo(const Map& map, const std::vector<Position>& dest, Grid<std::array<ShipNaviInfo, 4>>& out) {
+inline void GetShipNaviInfo(const Map& map, const std::vector<Position>& dest, Grid<std::array<ShipNaviInfo, 4>>& out) {
     struct State {
         int x;
         int y;
