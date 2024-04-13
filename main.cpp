@@ -304,11 +304,10 @@ double GetGoodsValue(int id, int x, int y) {
 }
 
 int RobotFindGoods(int x, int y) {
-  //  fprintf(stderr, "RobotFindGoods x: %d y: %d\n", x, y);
+    fprintf(stderr, "RobotFindGoods x: %d y: %d\n", x, y);
   int goods_id = -1;
   double max_value = -1;
-  for (int i = goods_removed; i < goods_added; i++) {
-    auto &g = goods[i];
+  for (auto &g : goods) {
     if (g.status != Goods::kOnLand) continue;
     auto &dis = *g.dis;
     if (current_time - g.occur_time + dis[x][y] >= kGoodsDuration) continue;
@@ -326,11 +325,12 @@ int RobotFindGoods(int x, int y) {
       }
     }
   }
+  fprintf(stderr, "RobotFindGoods goods_id: %d\n", goods_id);
   return goods_id;
 }
 
 bool AllocateGoodsToRobot(int id) {
-  //  fprintf(stderr, "AllocateGoodsToRobot id: %d\n", id);
+    fprintf(stderr, "AllocateGoodsToRobot id: %d\n", id);
   if (robot[id].status != Robot::kGoingToLoad) {
     fprintf(stderr, "Robot %d is not going to load?\n", id);
     return false;
