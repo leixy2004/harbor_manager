@@ -773,7 +773,7 @@ void UpdateOutput() {
   BuyRobot(100,100);
     fprintf(stderr,"Finished BuyRobot\n");
 //  fprintf(stderr,"buyr");
-
+  fflush(stderr);
   // TODO: update ship
 //  for(auto &s:ship){
 //    UpdateShip(s.id);
@@ -794,7 +794,7 @@ int main() {
 //        std::this_thread::sleep_for(std::chrono::milliseconds(14 - duration.count()));
 //      std::cerr << "UpdateOutput time: " << duration.count() << "ms" << std::endl;
 //      }
-//    ShowAll();
+    ShowAll();
     PrintOK();
   }
 //  }
