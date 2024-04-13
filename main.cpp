@@ -469,11 +469,13 @@ void ArrangeAllRobotAndBerth() {
 }
 
 void RobotLoadAndUnload(Robot &r) {
+  fprintf(stderr, "RobotLoadAndUnload\n");
   using namespace update_robot_goods;
   using namespace update_robot_berth;
   int &x = r.position.x;
   int &y = r.position.y;
   if (r.status == Robot::kGoingToLoad) {
+    fprintf(stderr, "Robot %d going to load\n", r.id);
     if (r.goods_id == -1) {
       return;
     }
@@ -487,6 +489,7 @@ void RobotLoadAndUnload(Robot &r) {
       return;
     }
     if ((*goods[r.goods_id].pre)[x][y] == kStay) { // load
+      fprintf(stderr,"stay\n");
       if (r.position != goods[r.goods_id].position
           || goods[r.goods_id].status != Goods::kOnLand) {
         fprintf(stderr, RED("Robot find no goods there,\n"));
@@ -497,11 +500,13 @@ void RobotLoadAndUnload(Robot &r) {
 
     }
   } else if (r.status == Robot::kGoingToUnload) {
+    fprintf(stderr, "Robot %d going to unload\n", r.id);
     if (r.berth_id == -1) {
       fprintf(stderr, "robot:%d berth_id == -1\n", r.id);
       return;
     }
     if (berth[r.berth_id].pre[x][y] == kStay) {
+      fprintf(stderr,"stay\n");
       if (!berth[r.berth_id].IsInArea(x, y)) {
         fprintf(stderr, RED("Robot %d (%d, %d) find no berth (id:%d) there.\n"), r.id, x, y, r.berth_id);
         return;
@@ -777,6 +782,7 @@ void UpdateOutput() {
 }
 
 int main() {
+  freopen("D:\\Downloads\\WindowsRelease\\new.txt","w",stderr);
   Init();
   while (Input()) {
 //    auto start = std::chrono::high_resolution_clock::now();
