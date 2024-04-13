@@ -40,7 +40,7 @@ struct Goods : MapObject {
 
   }
   ~Goods() {
-    //DeallocateMemory();
+    DeallocateMemory();
   }
   void AllocateMemory() {
 //    if (this->dis != nullptr || this->pre != nullptr) {
