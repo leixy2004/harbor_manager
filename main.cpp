@@ -453,7 +453,7 @@ void AllocateBerthToRobot(Robot &r) {
     //    fprintf(stderr, "Robot %d find no berth available.\n", id);
     return;
   }
-  r.status = Robot::kGoingToUnload;
+//  r.status = Robot::kGoingToUnload;
   r.berth_id = berth_id;
 
 }
@@ -496,7 +496,7 @@ void RobotLoadAndUnload(Robot &r) {
         r.Refresh();
       }
       r.PrintLoad();
-      r.status = Robot::kGoingToUnload;
+//      r.status = Robot::kGoingToUnload;
 
     }
   } else if (r.status == Robot::kGoingToUnload) {
@@ -513,7 +513,7 @@ void RobotLoadAndUnload(Robot &r) {
       }
       r.PrintUnload();
       berth[r.berth_id].saved_goods++;
-//      goods[r.goods_id].Update(Goods::kOnBerth);
+      goods[r.goods_id].Update(Goods::kOnBerth);
       r.Refresh();
     }
   }
