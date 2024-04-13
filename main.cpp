@@ -28,6 +28,7 @@ std::vector<Ship> ship;
 std::vector<Berth> berth;
 std::vector<Goods> goods;
 std::map<Position, int> goods_map;
+int Ship::capacity=0;
 int current_time = 0;
 int current_value = 0;
 int goods_added = 0;
